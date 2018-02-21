@@ -6,4 +6,7 @@ You can use the program directly in your browser without any download, installat
 
 Thanks to the Pell Editor, you can format texts and insert links or images (embedded in base64).
 
-
+You need to run at least: 
+- SJCL: sjcl.js and sjcl_scrypt.js as extra file
+- PELL: pell.css and pell.js
+- Two css files (tools-format.css and drop-down.css, that can be downloaded from the home page in the offline version)
