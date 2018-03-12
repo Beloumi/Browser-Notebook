@@ -10,3 +10,6 @@ You need to run at least:
 - SJCL: sjcl.js and sjcl_scrypt.js as extra file
 - PELL: pell.css and pell.js
 - Two css files (tools-format.css and drop-down.css, that can be downloaded from the home page in the offline version)
+
+You can find browser support and version log at:
+https://eck.cologne/browser-notebook/en/informations.html
