@@ -19,6 +19,9 @@
 "use strict";
 var BrowserNotebook = (function () {
 	
+	// mode of operation: true = alert errors
+	var testMode = true;
+	
 	// running on a local site, no web
 	var localSite = false;
 
@@ -30,7 +33,7 @@ var BrowserNotebook = (function () {
 	var workFactor = 16384;// * 2;
 
 	// the version of Browser Notebook: is set as adata in JSON object
-	var version = '0.4';
+	var version = '0.5';
 	// Name of the program: is set as adata
 	var programName = "Browser Notebook ";
 	
@@ -71,7 +74,22 @@ var BrowserNotebook = (function () {
 	 *  do some settings
 	*/
 	var init = function (evt){	
-		
+	
+		// global error handling
+		window.onerror = function(msg, src, line, col, error) {
+   		var extra = !msg ? '' : '\n' + msg;
+   		extra += !src ? '' : '\n' + src;
+   		extra += !line ? '' : '   ' + line;
+   		extra += !col ? '' : ', ' + col;
+   		if (error) {
+   			extra += '\n ' + error + ": ";
+   			extra += !error.fileName ? '' : '\n' + error.fileName;
+   			extra += !error.lineNumber ? '' : ': ' + error.lineNumber;
+   		}
+   		alert(lang.unexpected_error + extra);
+   		//return true;
+		};	
+
 		// check if storage is supported
 		if (typeof(Storage) === "undefined") {
 			alert("Your browser does not support local storage.\n"
@@ -116,6 +134,8 @@ var BrowserNotebook = (function () {
   				+ "(although this site does not use them)\n"
   				+ "or use Firefox to avoid the problem.");
 				console.log("Enable third party cookies in your browser");	
+  			} else {
+  				PageView.errorDisplay(err, true, true, "local storage not available");
   			}
  	 	}
  	 	
@@ -151,7 +171,6 @@ var BrowserNotebook = (function () {
 		if (numberOfTitles > 0){
 	   	PageView.showTitleList();
 	   }
-
 	};
 
 
@@ -187,6 +206,7 @@ var BrowserNotebook = (function () {
 			return;
 		} else {
 			// encrypt the text
+			//var errorString = "";
 			try {			
 				var rpStr = '{ "adata" : "' + programName + version + '" }'; 
 				var rp = JSON.parse(rpStr);
@@ -199,10 +219,43 @@ var BrowserNotebook = (function () {
   			
   				// show that text is saved:
   				PageView.indicateUnsavedChanges(false);
-			} catch (err) {			
-				alert(lang.unexpected_error);//"Unexpected error: \n " + err);
+			} catch (err) {		
+				if (err.name.toUpperCase().includes("QUOTA") ) {
+			/*	if ( (err.name === "QUOTA_EXCEEDED_ERR") // Safari
+				|| (err.name === "NS_ERROR_DOM_QUOTA_REACHED") // Firefox
+				|| (err.name === "QuotaExceededError") // Chrome
+				|| (err.name === "W3CException_DOM_QUOTA_EXCEEDED_ERR")) { // IE*/
+					alert(lang.memory_limit_exceeded);
+					PageView.errorDisplay(err, false, true, "Saving and encryption failed...");
+				} else {
+					PageView.errorDisplay(err, true, true, "Saving and encryption failed...");	
+				}
 			}
 		}		
+/*		// set href of dropbox link:
+    	var file = new Blob([encryptedText], {type: "application/json"});
+    	file.lastModifiedDate = new Date();
+    	file.name = PswTitleAction.getTitle() + ".json";
+    	var fileUrl;
+    	if 	(window.navigator.msSaveOrOpenBlob) {// IE10+, Edge
+        	window.navigator.msSaveOrOpenBlob(file, PswTitleAction.getTitle() + ".json");
+    	} else { // Others
+        	var aLink = document.createElement("a");
+			var url;
+			if ( window.URL && window.URL.createObjectURL ) {
+				var url = URL.createObjectURL(file);				
+			} else if ( window.webkitURL ) {
+				url = window.webkitURL.createObjectURL( file );
+			} else { //Opera
+				alert(lang.no_support_download);//"Your browser does not support this download function");
+				// must return, Opera could not load page otherwise
+				return;
+			}
+			fileUrl = url;
+		}
+		// set the link href:
+		document.getElementById("contentLink").href= fileUrl; 				
+*/		
 		return encryptedText;	
 	};
 
@@ -218,7 +271,8 @@ var BrowserNotebook = (function () {
 					try{
 						encryptAndSaveByStoredKey();
 					} catch (err) {
-						console.log(err);
+						PageView.errorDisplay(err, true, true, "Encryption failed...");	
+						//throw new Error(err);
 					}	
 				}
 		} 
@@ -262,6 +316,10 @@ var BrowserNotebook = (function () {
 	*/
 	var getWorkFactor = function() {
 		return workFactor;
+	};
+	
+	var isTestMode = function() {
+		return testMode;
 	};
 
 	/** Set the work factor N of Scrypt key derivation: 
@@ -318,26 +376,12 @@ var BrowserNotebook = (function () {
         clearStorage: clearStorage,
         newText: newText, 
         setWorkFactor: setWorkFactor,
-        getWorkFactor: getWorkFactor
+        getWorkFactor: getWorkFactor,
+        isTestMode: isTestMode
     };
 }) ();
 
 
-/***************** LATER....
-set the memory factor r of Scrypt key derivation
-*//*
-function setMemory(event, newMemoryFactor){
-	memoryFactor = newMemoryFactor;
-	// set current work factor background and reset other links
-	// get all li elements of parent of parent of target (a element in li in ul)
-	var listArray = event.target.parentElement.parentElement.getElementsByTagName("li");
-	for (var i = 0; i < listArray.length; i++) {
-		if (event.target.isEqualNode(listArray[i].firstChild)){
-			listArray[i].firstChild.style.background = "#00990d";
-		} else {
-			listArray[i].firstChild.style.background = "#f8f8f8";
-		}
-	}
-} */
+
 
 window.onload = BrowserNotebook.init;
