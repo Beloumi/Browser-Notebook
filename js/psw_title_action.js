@@ -27,6 +27,9 @@ var PswTitleAction = (function () {
 	// hourglass image to indicate processing
 	var hourGlass;
 	
+	// the ciphertext of the imported file or from Dropbox
+	var cipherText;
+	
 	//========================= PRIVATE FUNCTIONS ================================================
 	
 	/** Show an hourglass image and change cursor to wait cursor
@@ -43,7 +46,7 @@ var PswTitleAction = (function () {
 		try {
 			hourGlass.style.visibility = "visible";
 		} catch (err) {
-			console.log(err);
+			PageView.errorDisplay(err, false, true, "Couldn't load hourglass... ");
 		}
 		// show wait cursor
 		//document.getElementsByTagName("body")[0].style.cursor = "wait"; 
@@ -52,7 +55,8 @@ var PswTitleAction = (function () {
   			document.styleSheets[0].insertRule("* {cursor: wait !important}", 0);
   		} catch (err) {
   			if (err.name !== 'SecurityError'){ // for Firefox
-  				alert(lang.unexpected_error + "\n" + err.name + "\n" +err.message + "\n line: " + err.code);
+  				PageView.errorDisplay(err, true, true, "Couldn't load wait cursor... ");
+  				//alert(lang.unexpected_error + "\n" + err.name + "\n" +err.message + "\n line: " + err.code);
       		//throw err;
    		} 
   		}  	  		
@@ -67,7 +71,7 @@ var PswTitleAction = (function () {
 		try {
 			hourGlass.style.visibility = "hidden";
 		} catch (err) {
-  			console.log(err);
+  			PageView.errorDisplay(err, false, true, "Couldn't hide hourglass... ");
   		}
   		//document.getElementsByTagName("body")[0].style.cursor = "default"; 
   		//document.getElementById("passwordDiv").style.cursor = "default"; 
@@ -76,7 +80,7 @@ var PswTitleAction = (function () {
 			document.styleSheets[0].deleteRule(0);
 		} catch (err) {
   		 	if (err.name !== 'SecurityError'){  // for Firefox
-      		throw err;
+      		PageView.errorDisplay(err, true, true, "Couldn't reset wait cursor... ");
    		} 
   		}
 	};	
@@ -133,9 +137,7 @@ var PswTitleAction = (function () {
   				// reload page:
   				location.reload(); 
   			} else {
-  				alert(lang.unexpected_error + "\n" + err.fileName + "\n" + err.lineNumber+ "\n" + err.message);//"Unexpected error: \n" + err);
-  				//console.log("err: " + err);
-  				// reload page:
+  				PageView.errorDisplay(err, true, true, "Decryption by password failed... ");
   				location.reload();   			
   			} 
   		} finally {
@@ -179,16 +181,18 @@ var PswTitleAction = (function () {
   			// show that text is saved:
   			PageView.indicateUnsavedChanges(false);
 
-		} catch (err) {
-			
+		} catch (err) {			
 			if ( err.toString().match("TypeError") 
 					&& err.toString().match("undefined") ){
 				// missing password...
 				alert(lang.first_enter_password);//"You must type a password... ");
 				console.log(err);
+			} else if (err.name.toUpperCase().includes("QUOTA") ) {
+				alert(lang.memory_limit_exceeded);
+				PageView.errorDisplay(err, false, true, "Saving and encryption failed...");
 			} else {
-				alert(lang.unexpected_error + " \n " + err);
-			}
+				PageView.errorDisplay(err, true, true, "Saving and encryption by password failed...");	
+			} 
 		} finally {
 			// hide hourglass, reset wait cursor in this function:
 			callback();		
@@ -237,6 +241,15 @@ var PswTitleAction = (function () {
 	};
 	
 	//========================= PUBLIC FUNCTIONS ================================================	
+	
+	/** Set the JSON content with the ciphertext
+	* @param {String} newCipherText  the ciphertext as base64
+	*/ 
+	var setCipherText = function(newCipherText) {
+		cipherText = newCipherText;
+		
+	};	
+	
  	/** Get the title of the current text
   	 * @return {String} the title of the current text  
     */ 
@@ -248,6 +261,7 @@ var PswTitleAction = (function () {
    */ 
  	var setTitle = function (newTitle) {   
  		currentTextTitle = newTitle;
+ 		//document.getElementById("titleInput").value = newTitle;
  	};
 	/** Change the title of the current text
 	 */
@@ -340,7 +354,7 @@ var PswTitleAction = (function () {
   					});
 				});  		
   			}catch (err) {
-  				console.log(err);
+  				PageView.errorDisplay(err, false, true, "Encryption of content failed... ");
   			}			
 			// reset	
   			var confirmPassword = false;
@@ -385,7 +399,7 @@ var PswTitleAction = (function () {
 				console.log("Could not find old text title to remove...");
 			}
 		// Case 2: open/decrypt text
-		} else {	// open/decrypt existing/imported text
+		} else {	// open/decrypt existing/imported/dropbox text
 		
 			// decrypt the text: 	
 			if (currentTextTitle == null || currentTextTitle === "") {
@@ -404,6 +418,7 @@ var PswTitleAction = (function () {
 
 			// get encrypted text from local storage
 			// (file import stores cipher text)
+// TODO do not store before password fits..., set cipherText variable
   			var encryptedText = window.localStorage.getItem(currentTextTitle);
   			try {
   				if (encryptedText ) {
@@ -419,7 +434,7 @@ var PswTitleAction = (function () {
 					console.log("No stored text...");			
   				}
   			} catch (err) {
-  				console.log(err);
+  				PageView.errorDisplay(err, true, true, "Decryption of content failed... ");
   			}
   		}
 	}
