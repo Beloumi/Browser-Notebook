@@ -47,6 +47,7 @@ var FileAction = (function () {
 	 * @return true, if the object contains all required Browser Notebook keys
 	 */
 	var validateNotebookJSON = function (jsonContent){
+		if (!jsonContent) return false;
    	// check keys: iv, iter, ks, ts, mode, cipher, salt, ct
    	if (jsonContent.hasOwnProperty('iv') && jsonContent.hasOwnProperty('iter')
    			&& jsonContent.hasOwnProperty('ks') && jsonContent.hasOwnProperty('ts')
@@ -59,16 +60,55 @@ var FileAction = (function () {
    	}
 	};
 
+	/** Check and display a new file
+	 * @param {String} [fileName] The file name
+	 * @param {String} [fileContent] The file content
+	 */
+	var processNewFile = function (fileName, fileContent) {
+		// check all localStorage items:
+		if ( BrowserNotebook.checkForExistingStorageKey(fileName)	== true){	
+			// ask to overwrite:
+			var r = confirm(lang.existing_title//"There is already a content named " 
+			+ "\n" + fileName + "\n" +
+			lang.import_overwrites);//".\n Import will overwrite the existing content...");
+			if (r == false) {	
+				console.log("break file import...");
+				// reload the page:
+				window.location.reload();
+				return;
+			} 
+		}
+		PswTitleAction.setTitle(fileName);
+  
+    		// check validity of JSON:
+			var jsonContent; // JSON object
+			try {
+   			jsonContent= JSON.parse(fileContent);
+  			} catch (e) {
+  				alert(lang.not_valid_json);//"File content is not valid JSON format...");
+      		return;
+  			}
+    		if ( validateNotebookJSON(jsonContent) === false) {
+    			alert(lang.invalid_notebook_file //"Invalid file for Browser Notebook: "
+    			 + file.name);
+    			return;
+    		}
+    		// store encrypted content
+    		PswTitleAction.setTitle(fileName);
+    		_storeImportedFile(fileContent);	
+	};
 	/** Read a file from file input: FileReader and onload function
 	 * @param {Object} [e] The event
 	 */
 	var readSingleFile = function (e) {
+		
  		var file = e.target.files[0];
   		if (!file) {
     		return;
   		}
   		// remove extension: .json or other
   		var fileNameCheck = file.name.substring(0, file.name.lastIndexOf('.'));
+  		
   		// check if there is already an item for this key:
 		// check all localStorage items:
 		if ( BrowserNotebook.checkForExistingStorageKey(fileNameCheck)	== true){	
@@ -151,7 +191,8 @@ var FileAction = (function () {
     		}
     		console.log("encrypted text exported in file " + PswTitleAction.getTitle() + ".json");
     	} catch (err) {
-    			alert("Couldn't download the file " + PswTitleAction.getTitle() +":\n" + err);
+    		//alert("Couldn't download the file " + PswTitleAction.getTitle() +":\n" + err);
+    		PageView.errorDisplay(err, true, true, "Couldn't download the file " + PswTitleAction.getTitle());
     	}
 	};
 	/** Import an encrypted file, that was created with another browser, 
@@ -170,11 +211,12 @@ var FileAction = (function () {
 		PageView.closeExtraMenu();
 		PageView.fileImportInput();
 	};
+	
 
-  
   	return { // make functions public:
   		downloadFile: downloadFile,
   		importFile: importFile, 
+  		processNewFile: processNewFile,
   		readSingleFile: readSingleFile, 
   		validateNotebookJSON: validateNotebookJSON
   	};
