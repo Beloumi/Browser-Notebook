@@ -8,6 +8,7 @@ var lang = {
     first_enter_password : "You must first enter the password...",
     text_lost : "If you continue, the current text will be lost.",
     apply_new_work_factor : "Note: To apply the new work factor to an existing text, \nyou must change the password or the title.",
+    memory_limit_exceeded : "Memory limit for browser exceeded", // also psw_title_action.js
 	// psw_title_action.js
 	 enter_text_placeholder: "Enter your text...",
 	 wrong_password: "Wrong password",
@@ -26,6 +27,9 @@ var lang = {
 	// page_view.js
 	 no_text_create: "There is no text. \nCreate a new text: \n  File -> New...",
 	 // pell_integration
-	 select_image: "Select an image file"
+	 select_image: "Select an image file",
+	 invalid_image_file: "Invalid image file",
+	 file_size_warning: "Warning: Large image files may exceed available memory.",
+	 // cloud_action.js
+	 file_saved: "File saved:"
 };
-
