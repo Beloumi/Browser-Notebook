@@ -395,3 +395,4 @@ sjcl.misc.cachedScrypt = function (password, obj) {
   	//c[salt] = c[salt] || sjcl.misc.scrypt(password, salt, obj.iter, 8, 1, 256);
   return { key: c[salt].slice(0), salt:salt.slice(0) };
 };
+
