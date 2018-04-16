@@ -37,7 +37,7 @@ var PageView = (function () {
   	var loadTitles = function () {
   		
   		// get all itmes of local storage:
-  		var len = localStorage.length;
+  		var len = window.localStorage.length;
 		if (len === 0 || len == null) {
 			return;
 		}
@@ -45,20 +45,20 @@ var PageView = (function () {
 		for ( var i = 0; i < len; i++ ) {
 			try {
 				// 1. try to parse as JSON 
-				var jsonObject = JSON.parse(localStorage.getItem(localStorage.key(i)));
+				var jsonObject = JSON.parse(window.localStorage.getItem(window.localStorage.key(i)));
 			} catch(err) {
 				//console.log("item: " + localStorage.getItem(localStorage.key(i)));			
 				if (err instanceof SyntaxError) { // item is not a JSON object
-					if ( localStorage.key(i) === "lastTitle") {
+					if ( window.localStorage.key(i) === "lastTitle") {
 						continue; // ignore
 					} else {
 						console.log("Item of local storage is not a valid JSON object: " 
-									+ localStorage.key(i));	
-						console.log( localStorage.getItem(localStorage.key(i)) );
+									+ window.localStorage.key(i));	
+						console.log( window.localStorage.getItem(window.localStorage.key(i)) );
 						continue; // ignore
 					}
 				} else { // other Errors than SyntaxError
-					throw(err);			
+					errorDisplay(err, true, true, "JSON parsing failed");
 				}
 			}			
 			// 2. check required keys:
@@ -70,22 +70,22 @@ var PageView = (function () {
 				if (adata.lastIndexOf(BrowserNotebook.programName, 0) === 0) {
 					// check version: log warning
 					if ( ! (adata.indexOf(BrowserNotebook.version, adata.length - BrowserNotebook.version.length) !== -1)){
-						console.log("Wrong version of Browser Notebook: " + localStorage.key(i));
+						console.log("Wrong version of Browser Notebook: " + window.localStorage.key(i));
 					}	
 					// add title to titles array
-					titles.push(localStorage.key(i));
+					titles.push(window.localStorage.key(i));
 				} else {
 					// check for old text of version 0.1 (there was no adata, but fixed title)
-					if (localStorage.key(i) === 'encryptedText'){
-						console.log("Old version of Browser Notebook: " + localStorage.key(i));	
+					if (window.localStorage.key(i) === 'encryptedText'){
+						console.log("Old version of Browser Notebook: " + window.localStorage.key(i));	
 						// add title to titles array
-						titles.push(localStorage.key(i));
+						titles.push(window.localStorage.key(i));
 					} else {
-						console.log("Not a Browser Notebook item: " + localStorage.key(i));			
+						console.log("Not a Browser Notebook item: " + window.localStorage.key(i));			
 					}				
 				}	
 			} else { // missing JSON key 
-				console.log("Missing required JSON key for cipher text: " + localStorage.key(i));
+				console.log("Missing required JSON key for cipher text: " + window.localStorage.key(i));
 			}
 		}
 	}
@@ -111,14 +111,14 @@ var PageView = (function () {
 			return;
 		}	
 		// get last opened text title to select
- 		var lastTitle = localStorage.getItem('lastTitle');
+ 		var lastTitle = window.localStorage.getItem('lastTitle');
 
 		for ( var i = 0; i < len; i++ ) {
 		
 			// get key of item:
 			var storageKey = titles[i];
 			// get value of key:
-			var encryptedText = JSON.parse(localStorage.getItem(storageKey));
+			var encryptedText = JSON.parse(window.localStorage.getItem(storageKey));
 		
 			// create radio input with name and onclick function to set the title
 			var radioHtml = '<div"><label style="border: 1px solid gray; padding:5px 10px 5px 5px"><input id="' + storageKey + '"'
@@ -283,7 +283,7 @@ var PageView = (function () {
 		var fileInput = document.createElement("input");
       fileInput.setAttribute('id', 'inputFileImport');		
       fileInput.setAttribute("type", "file");
-		// accept only text files
+		// accept only JSON files
       fileInput.setAttribute('accept', '.json, .JSON');
 		fileInput.addEventListener('change', FileAction.readSingleFile, false);
       
@@ -317,7 +317,7 @@ var PageView = (function () {
 		document.getElementById('encryptedTextModal').style.display = "block";
 			
 	}	catch (err) { // display encrypted text in alert...
-		console.log(err);
+		errorDisplay(err, false, true, "Showing encrypted text failed");
  		alert(window.localStorage.getItem(PswTitleAction.getTitle()));
  	}  
   };  
@@ -341,7 +341,7 @@ var PageView = (function () {
 		for (var i=0; i < nodes.length;i++){
 			 nodes[i].style.position = "absolute";
 		}	 	
-	 }
+	 };
 	/** Reset the previously closed extra menu
 	 * (especially Safari/Chrome for iOS do not properly close the menu)
 	 */
@@ -352,6 +352,50 @@ var PageView = (function () {
 			 nodes[i].style.position = "relative";
 		}	 	
 	 };
+	 
+  	/** Display an error message on screen and in console 
+    * @param {Object} 	e			the error object
+    * @param {boolean} 	displayMessage	true: display message on screen (alert)
+    * @param {boolean} 	logConsole  	true: log stack, message of error in console  
+    * @param {String} 	extraMessage  	extra message for this error
+   */
+	var errorDisplay = function (e, displayMessage, logConsole, extraMessage) { 	 
+
+		if(displayMessage === true) {
+ 			alert(lang.unexpected_error + "\n" + e.name 
+					+ "\n" + e.message + "\n" + 
+					(extraMessage ? extraMessage : "") );
+		}
+		if (logConsole === true) {
+			// create message string for console:
+			var firefoxString = 
+				 ( (typeof(e.fileName) != "undefined") ? "\nfile: " + e.fileName : "")	// Firefox
+				+ ( (typeof(e.lineNumber) != "undefined") ? "\nline: " + e.lineNumber : "")	// Firefox
+				+ ( (typeof(e.columnNumber) != "undefined") ? "\ncolumn: " + e.columnNumber : "");	// Firefox
+			var microsoftString = ( (typeof(e.description) != "undefined") ? "\ndescription: " + e.description : "") // Microsoft
+				+ ( (typeof(e.number) != "undefined") ? "\nnumber: " + e.number : "");// Microsoft
+  			var stack = "\nstack: \n" + e.stack;				
+ 			var consoleMessage = "";
+ 			if (extraMessage) {
+ 				consoleMessage += extraMessage;	
+ 			}
+  			if (firefoxString) {
+    			consoleMessage += firefoxString;
+  			}
+    		if (microsoftString) {
+    			consoleMessage += microsoftString;
+  			}
+  			if (stack) {
+  				consoleMessage += stack;
+  			}
+  			console.log(e.name + ": " + e.message + consoleMessage);
+  			if (BrowserNotebook.isTestMode() === true) {
+				alert(consoleMessage);// test mode  			
+			}
+  		}
+
+			
+		};
   
   	return { // make functions public:
   		loadTitles: loadTitles,
@@ -364,8 +408,8 @@ var PageView = (function () {
     	showEncryptedText: showEncryptedText, 
     	closeEncryptedText: closeEncryptedText,
     	closeExtraMenu: closeExtraMenu, 
-    	resetExtraMenu: resetExtraMenu
+    	resetExtraMenu: resetExtraMenu, 
+    	errorDisplay: errorDisplay
   	};
 })();
-    //  PageView.indicateUnsavedChanges(false);
-    //  PageView.showInputForm(false, false, false);
+
