@@ -8,6 +8,7 @@ var lang = {
     first_enter_password : "önce şifrenizi girmelisiniz...",
     text_lost : "devam ederseniz, geçerli metin kaybolur.",
     apply_new_work_factor : "Not: varolan bir metne yeni iş faktörü uygulamak için, \nparolayı veya başlığı değiştir.",
+    memory_limit_exceeded : "Tarayıcı bellek sınırı aşıldı",
 	// psw_title_action.js
 	 enter_text_placeholder: "metninizi girin...",
 	 wrong_password: "yanlış şifre",
@@ -26,6 +27,9 @@ var lang = {
 	// page_view.js
 	 no_text_create: "hiçbir metin yok. \nyeni bir metin oluşturun: \n  dosya -> yeni...",
 	 // pell_integration
-	 select_image: "Resim dosyası seçin"
+	 select_image: "Resim dosyası seçin",
+	 invalid_image_file: "Geçersiz görüntü dosyası",
+	 file_size_warning: "Uyarı: büyük resim dosyaları kullanılabilir belleği aşabilir.",
+	 // cloud_action.js
+	 file_saved: "Dosya kaydedildi:"
 };
-
