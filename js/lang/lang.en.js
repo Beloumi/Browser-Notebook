@@ -24,8 +24,22 @@ var lang = {
 	 invalid_notebook_file: "Invalid file for Browser Notebook: ", 
 	 no_support_download: "Your browser does not support this download function",
 	 no_support_upload: "Your browser does not support file upload...",
+	 import_workaround_hint: "Workaround if the file import fails: ",
+	 import_workaround_open_text: "Create a new text or open an existing text to append the imported text there and then click on this menu item again.",
+	 decrypt: "Decrypt",
+	 import_workaround_1: "1. Open your previously used file in any editor. ",
+	 import_workaround_2: "2. Copy all the content from the editor and paste it here:",
+	 import_workaround_3: "3. Type the password: ",
+	 import_workaround_4: "4. Then click Decrypt",
+	 import_workaround_5: "Note: The password of the imported text is then also applied to this text. ",	 	 
+	 
 	// page_view.js
 	 no_text_create: "There is no text. \nCreate a new text: \n  File -> New...",
+	 copy_ciphertext: "Copy",
+	 export_failed: "Failed?",
+	 close_ciphertext: "Close",
+	 export_workaround_text: "Clicking the copy button copies the encrypted text to the clipboard. \n Paste the text into an editor and save this file under the name:",
+	 export_manually: "Select and copy all the following text manually:",
 	 // pell_integration
 	 select_image: "Select an image file",
 	 invalid_image_file: "Invalid image file",
@@ -33,3 +47,4 @@ var lang = {
 	 // cloud_action.js
 	 file_saved: "File saved:"
 };
+
