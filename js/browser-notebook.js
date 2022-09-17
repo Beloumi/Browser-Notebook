@@ -22,42 +22,38 @@ var BrowserNotebook = (function () {
 	// mode of operation: true = alert errors
 	var testMode = true;
 	
+	// running from local host, not in internet
+	var localHost = false;
+	
 	// running on a local site, no web
 	var localSite = false;
 
-	// is android, IE, Edge or not:
-	var isAndroid = false;
+	// is android, IE or not:
+	//var isAndroid = false;
 	var isIE = false;
-	var isEdge = false;
+	//var isEdge = false;
 
 	var workFactor = 16384;// * 2;
 
 	// the version of Browser Notebook: is set as adata in JSON object
-	var version = '0.5';
+	var version = '0.6';
 	// Name of the program: is set as adata
 	var programName = "Browser Notebook ";
-	
 
 	/** Close the modal dialog to display the encrypted text
 	 *  if click or touch outside of dialog text
 	 */
 	var _closeOpenMenuAndDialogs = function(event) {
-//		console.log("tagName: " + event.target.tagName + ", target: " + event.target.id);
     	if (event.target === document.getElementById('encryptedTextModal')) { // outside the encrypted text
     		// close encrypted text:
     		PageView.closeEncryptedText();
     	}
- /*   	if (event.target.tagName !== 'A') {
-    		// close all menu items:
-    		console.log("not a");
-    	}*/
 	};
-
 
 	/** Convert 4 byte word into byte array
  	*/
 	var wordToByteArray = function (word, length) {
-		var byteArray = [], i, xFF = 0xFF;
+		var byteArray = [], xFF = 0xFF;
 		if (length > 0)
 			byteArray.push(word >>> 24);
 		if (length > 1)
@@ -68,7 +64,6 @@ var BrowserNotebook = (function () {
 			byteArray.push(word & xFF);
 		return byteArray;
 	};
-
 
 	/** Init: check if storage is supported, if text is already stored, 
 	 *  do some settings
@@ -89,6 +84,84 @@ var BrowserNotebook = (function () {
    		alert(lang.unexpected_error + extra);
    		//return true;
 		};	
+		
+		/* EventListener to replace inline onclick and keypress  */				
+		document.getElementById("newText").addEventListener("click", BrowserNotebook.newTextAndFocus);
+		document.getElementById("newText").addEventListener('keypress', function(){
+  			BrowserNotebook.enter(event);});
+		document.getElementById("encryptA").addEventListener("click", BrowserNotebook.encryptAndSaveByStoredKey);
+		document.getElementById("encryptA").addEventListener('keypress', function(){
+  			BrowserNotebook.enter(event);});
+		document.getElementById("clearStorageButton").addEventListener("click", BrowserNotebook.clearStorage);
+		document.getElementById("clearStorageButton").addEventListener('keypress', function(){
+  			BrowserNotebook.enter(event);});  	  					  			  			
+		document.getElementById("changeTitleButton").addEventListener("click", PswTitleAction.changeTitle);
+		document.getElementById("changeTitleButton").addEventListener('keypress', function(){
+  			BrowserNotebook.enter(event);});  			
+		document.getElementById("quitA").addEventListener("click", BrowserNotebook.quitProgram);
+		document.getElementById("quitA").addEventListener('keypress', function(){
+  			BrowserNotebook.enter(event);});  			
+		document.getElementById("factor8192").addEventListener("click", function(){
+			BrowserNotebook.setWorkFactor(event, 8192);});
+		document.getElementById("factor8192").addEventListener('keypress', function(){
+  			BrowserNotebook.enter(event);});
+		document.getElementById("factor16384").addEventListener("click",  function(){
+			BrowserNotebook.setWorkFactor(event, 16384);});
+		document.getElementById("factor16384").addEventListener('keypress', function(){
+  			BrowserNotebook.enter(event);});
+		document.getElementById("factor24576").addEventListener("click",  function(){
+			BrowserNotebook.setWorkFactor(event, 24576);});
+		document.getElementById("factor24576").addEventListener('keypress', function(){
+  			BrowserNotebook.enter(event);});  
+		document.getElementById("factor32768").addEventListener("click", function(){
+			BrowserNotebook.setWorkFactor(event, 32768);});
+		document.getElementById("factor32768").addEventListener('keypress', function(){
+  			BrowserNotebook.enter(event);});
+		document.getElementById("factor65536").addEventListener("click", function(){
+			BrowserNotebook.setWorkFactor(event, 65536);});
+		document.getElementById("factor65536").addEventListener('keypress', function(){
+  			BrowserNotebook.enter(event);});  			
+		document.getElementById("changePasswordButton").addEventListener("click", PswTitleAction.changePassword);
+		document.getElementById("changePasswordButton").addEventListener('keypress', function(){
+  			BrowserNotebook.enter(event);});  			
+		document.getElementById("extraMenu").addEventListener("focus", PageView.resetExtraMenu);
+		document.getElementById("extraMenu").addEventListener('mouseover', PageView.resetExtraMenu); 			
+		document.getElementById("downloadButton").addEventListener("click", FileAction.downloadFile);
+		document.getElementById("downloadButton").addEventListener('keypress', function(){
+  			BrowserNotebook.enter(event);});
+		document.getElementById("exportWorkaround").addEventListener("click", PageView.exportWorkaround);
+		document.getElementById("exportWorkaround").addEventListener('keypress', function(){
+  			BrowserNotebook.enter(event);});  
+		document.getElementById("importButton").addEventListener("click", FileAction.importFile);
+		document.getElementById("importButton").addEventListener('keypress', function(){
+  			BrowserNotebook.enter(event);});
+		document.getElementById("importClipboardButton").addEventListener("click", FileAction.importFromClipboard);
+		document.getElementById("importClipboardButton").addEventListener('keypress', function(){
+  			BrowserNotebook.enter(event);});
+  		// cloud Dropbox: To avoid unnecessary trackers, Dropbox library is loaded
+  		// before using it. Buttons to load and to save are hidden by default
+  		document.getElementById("enableDropbox").addEventListener("click", CloudAction.loadDropboxLib);
+		document.getElementById("enableDropbox").addEventListener('keypress', function(){
+  			BrowserNotebook.enter(event);});
+		document.getElementById("dropboxButton").addEventListener("click", CloudAction.dropboxLoad);
+		document.getElementById("dropboxButton").addEventListener('keypress', function(){
+  			BrowserNotebook.enter(event);});
+  		document.getElementById("dropboxButton").style.display = "none";
+		document.getElementById("dropboxButtonSave").addEventListener("click", CloudAction.dropboxSave);
+		document.getElementById("dropboxButtonSave").addEventListener('keypress', function(){
+  			BrowserNotebook.enter(event);});
+  		document.getElementById("dropboxButtonSave").style.display = "none";  			
+		document.getElementById("passwordButton").addEventListener("click", PswTitleAction.processInputForm);
+		document.getElementById("passwordButton").addEventListener('keypress', function(){
+  			BrowserNotebook.enter(event);});    			  			
+		document.getElementById("skipToText").addEventListener("click", EditorIntegration.setCaretToEnd);
+		document.getElementById("skipToText").addEventListener('keypress', function(){
+  			BrowserNotebook.enter(event);}); 
+		document.getElementById("encryptButton").addEventListener("click", BrowserNotebook.encryptAndSaveByStoredKey);
+		document.getElementById("encryptButton").addEventListener('keypress', function(){
+  			BrowserNotebook.enter(event);});   			
+		document.getElementById("skiptToMenu").addEventListener('keypress', function(){
+  			BrowserNotebook.enter(event);});  
 
 		// check if storage is supported
 		if (typeof(Storage) === "undefined") {
@@ -106,13 +179,17 @@ var BrowserNotebook = (function () {
 			console.log("local storage available");
 			// check for Internet Explorer 6-11 or Edge + locale HTML file
 			//isIE = /*@cc_on!@*/false || !!document.documentMode;// IE
-			isIE = /MSIE 10/i.test(navigator.userAgent);
-			isEdge = window.navigator.userAgent.indexOf("Edge") > -1; // Edge
+			try {
+				isIE = /MSIE 10/i.test(navigator.userAgent);
+				//isEdge = window.navigator.userAgent.indexOf("Edge") > -1; // Edge
+			} catch (error) {
+  				console.error(error);	
+			}
 			localSite = ("file:".match(window.location.protocol));
 			//console.log("local: " + localSite + ", ie: " + isIE + ", Egde: " + isEdge);
 			if ((localSite) // local HTML
-				&& ((isIE === true) || (isEdge === true))){
-				alert("Internet Explorer and Edge do not support local storage for non-server (offline) sites...");
+				&& ((isIE === true) ) ) { //|| (isEdge === true))){
+				alert("Internet Explorer does not support local storage for non-server (offline) sites...");
 			}		
 		}
 	
@@ -123,6 +200,16 @@ var BrowserNotebook = (function () {
 		if ((localSite === false) && (location.protocol != 'https:')) { // set location failed...
 			alert("Warning: You are using HTTP protocol.\n"
 				+ "Your communication is not protected..." );
+		}
+		
+		// on local host, Dropbox does not work: hide
+		if (location.hostname === "localhost" || location.hostname === "127.0.0.1" || location.hostname === "") {
+			localHost = true;			
+			document.getElementById("enableDropbox").style.display = "none";
+			document.getElementById("dropboxTrackerHint").style.display = "none";
+			document.getElementById("dropboxButton").style.display = "none";
+			document.getElementById("dropboxButtonSave").style.display = "none";		
+			//alert("localHost: " + localHost);
 		}
   	
   		try { // Check for Opera
@@ -140,7 +227,7 @@ var BrowserNotebook = (function () {
  	 	}
  	 	
  	 	// Check if touch is supported (iOS), otherwise click:
-		let touchEvent = 'ontouchstart' in window ? 'touchstart' : 'click';
+		var touchEvent = 'ontouchstart' in window ? 'touchstart' : 'click';
 		window.addEventListener(touchEvent, _closeOpenMenuAndDialogs);
 	
 		// load all valid existing titles:
@@ -164,18 +251,63 @@ var BrowserNotebook = (function () {
 	   EditorIntegration.doInitialSettings();
 	
 		// detect operating system Android:
-		if (/android/i.test(window.navigator.userAgent)) {
+	/*	try {
+			if (/android/i.test(window.navigator.userAgent)) {
  	       isAndroid = true;
- 	  	} 
+ 	  		} 
+ 	  	} catch (error) {
+  			console.error(error);
+		} */
 		// display the text titles: 
 		if (numberOfTitles > 0){
 	   	PageView.showTitleList();
 	   }
+	   
+	   // start: set focus 
+	   setFirstFocus();
 	};
 
 
 /***************** Converter and helper functions **************************************/
 
+	/**
+		Accessibility support: enter and space key trigger 
+		the click event of the target (onclick must be defined)
+	*/
+	function enter(event){
+	   event.preventDefault();
+    	event.stopPropagation();
+		event.target.focus();
+		//console.log(event.keyCode);
+		if (event.keyCode === 13 || event.keyCode === 32) {// enter, space
+			event.target.click();
+		} 
+	}	
+
+	/** Escape HTML characters when displaying a string
+	 *
+	 */
+	function escapeString(unsafeString) {
+    	return unsafeString
+         .replace(/&/g, "&amp;")
+         .replace(/</g, "&lt;")
+         .replace(/>/g, "&gt;")
+         .replace(/"/g, "&quot;")
+         .replace(/'/g, "&#039;");
+ 	}
+ 	
+	/**
+	 * Sanitize and encode all HTML in a user-submitted string
+	 * https://portswigger.net/web-security/cross-site-scripting/preventing
+	 * @param  {String} str  The user-submitted string
+	 * @return {String} str  The sanitized string
+	 */
+	var sanitizeHTML = function (str) {
+		return str.replace(/[^\w. ]/gi, function (c) {
+			return '&#' + c.charCodeAt(0) + ';';
+		});
+	};
+ 	
 	/** Checks if there is already a key of localStorage. 
 	 *  This must not be a Browser Notebook text. 
 	*/
@@ -192,12 +324,10 @@ var BrowserNotebook = (function () {
 		return false;
 	};
 
-
 	/** Scenario: Encrypt content by key, save button clicked
 	 * @return ciphertext (used for export)
 	 */
-	var encryptAndSaveByStoredKey = function () {
-	
+	var encryptAndSaveByStoredKey = function () {	
 		//var plainText = document.getElementById("textField").value;
 		var plainText = EditorIntegration.getContent();
 		var encryptedText;
@@ -210,7 +340,7 @@ var BrowserNotebook = (function () {
 			try {			
 				var rpStr = '{ "adata" : "' + programName + version + '" }'; 
 				var rp = JSON.parse(rpStr);
-				var encryptedText = sjcl.encryptWithScryptAndAES256(null, plainText, false, rp);// use stored key
+				encryptedText = sjcl.encryptWithScryptAndAES256(null, plainText, false, rp);// use stored key
 
 				// Store: this is already a JSON object
 				window.localStorage.setItem(PswTitleAction.getTitle(), encryptedText);
@@ -232,30 +362,6 @@ var BrowserNotebook = (function () {
 				}
 			}
 		}		
-/*		// set href of dropbox link:
-    	var file = new Blob([encryptedText], {type: "application/json"});
-    	file.lastModifiedDate = new Date();
-    	file.name = PswTitleAction.getTitle() + ".json";
-    	var fileUrl;
-    	if 	(window.navigator.msSaveOrOpenBlob) {// IE10+, Edge
-        	window.navigator.msSaveOrOpenBlob(file, PswTitleAction.getTitle() + ".json");
-    	} else { // Others
-        	var aLink = document.createElement("a");
-			var url;
-			if ( window.URL && window.URL.createObjectURL ) {
-				var url = URL.createObjectURL(file);				
-			} else if ( window.webkitURL ) {
-				url = window.webkitURL.createObjectURL( file );
-			} else { //Opera
-				alert(lang.no_support_download);//"Your browser does not support this download function");
-				// must return, Opera could not load page otherwise
-				return;
-			}
-			fileUrl = url;
-		}
-		// set the link href:
-		document.getElementById("contentLink").href= fileUrl; 				
-*/		
 		return encryptedText;	
 	};
 
@@ -267,20 +373,19 @@ var BrowserNotebook = (function () {
 	var quitProgram = function (){	
 		if (PageView.isUnsavedChanges() === true){	
 			var r = confirm(lang.unsaved_changes);//"There a unsaved changes..\n Do you want to save?");
-				if (r == true) {
-					try{
-						encryptAndSaveByStoredKey();
-					} catch (err) {
-						PageView.errorDisplay(err, true, true, "Encryption failed...");	
-						//throw new Error(err);
-					}	
-				}
+			if (r == true) {
+				try{
+					encryptAndSaveByStoredKey();
+				} catch (err) {
+					PageView.errorDisplay(err, true, true, "Encryption failed...");	
+					//throw new Error(err);
+				}	
+			}
 		} 
 		//document.getElementById("textField").value = "";
 		EditorIntegration.setContent("");
 		window.location.reload();
 	};
-
 
 	/** Delete current local storage item
 	*/
@@ -289,8 +394,7 @@ var BrowserNotebook = (function () {
 		if ( document.getElementById("passwordDiv").offsetParent !== null){
 			alert(lang.first_enter_password);//"You must first enter the password...");
 			return;
-		}
-	
+		}	
 		var r = confirm(lang.text_lost);//"If you continue, the current text will be lost.");
 		if (r == true) {
    	 	window.localStorage.setItem(PswTitleAction.getTitle(), "");
@@ -304,13 +408,42 @@ var BrowserNotebook = (function () {
 	};
 
 	/** Create a new text with title and password
+	 *	 and set the focus to the title input field
 	*/
-	var newText = function () {
+	var newTextAndFocus = function () {
 		// remove old text content:
 		//document.getElementById("textField").value = "";
 		EditorIntegration.setContent("");
+		// hide title list:
+		document.getElementById("titleListDiv").style.display = "none";		
 		PageView.showInputForm(true, true, true);
+		document.getElementById("titleInput").focus();
 	};
+	
+	/** set  focus on start
+	*/
+	var setFirstFocus = function () {
+		
+		// case 1: no text -> focus on titleInput
+		if (document.getElementById("titleNotEncryptedHint") !== undefined && document.getElementById("titleNotEncryptedHint") !== null && document.getElementById("titleNotEncryptedHint").style.display === "none"){
+			//document.getElementById("passwordField").focus();
+			document.getElementById("titleInput").focus();
+			return;
+		} else {			
+			// case 2: no title is selected (should never happen) -> focus on title selection
+			if (PswTitleAction.getTitle() === undefined || PswTitleAction.getTitle() === null || PswTitleAction.getTitle() === "") {
+				if (document.getElementById("titleListDiv") !== undefined && document.getElementById("titleListDiv") !== null && document.getElementById("titleListDiv").style.display === "block"){
+					document.getElementById("titleListDiv").focus();
+				}
+				return;
+			} else {
+				// case 2: title is selected -> focus on password field
+				document.getElementById("passwordField").focus();
+				return;			
+			}
+		}
+	};	
+	
 	/** Get the Scrypt work factor
 	 * @return the work factor as number
 	*/
@@ -321,13 +454,12 @@ var BrowserNotebook = (function () {
 	var isTestMode = function() {
 		return testMode;
 	};
-
+	
 	/** Set the work factor N of Scrypt key derivation: 
 	 *  For existing texts the
 	 *  password must be typed and confirmed
 	*/
 	var setWorkFactor = function (event, newWorkFactor) {
-
 		// set iteration in modified_convenience.js
 		workFactor = newWorkFactor;	
 		// show new selected value in menu:
@@ -360,28 +492,48 @@ var BrowserNotebook = (function () {
 			EditorIntegration.disableEditor();
 			// display password fields:
 			PageView.showInputForm(false, true, true);
+			document.getElementById("passwordField").focus();
 		}
 	};
-
+	
 
     return {
     	// variables:
     	programName: programName,
     	version: version,
     	// functions:
-        init: init,
-        checkForExistingStorageKey: checkForExistingStorageKey,
-        encryptAndSaveByStoredKey: encryptAndSaveByStoredKey,
-        quitProgram: quitProgram,
-        clearStorage: clearStorage,
-        newText: newText, 
-        setWorkFactor: setWorkFactor,
-        getWorkFactor: getWorkFactor,
-        isTestMode: isTestMode
+      init: init,
+      enter: enter,
+      checkForExistingStorageKey: checkForExistingStorageKey,
+      encryptAndSaveByStoredKey: encryptAndSaveByStoredKey,
+      quitProgram: quitProgram,
+      clearStorage: clearStorage,
+      newTextAndFocus: newTextAndFocus,    
+      setFirstFocus: setFirstFocus,    
+      setWorkFactor: setWorkFactor,
+      getWorkFactor: getWorkFactor,
+      isTestMode: isTestMode, 
+      escapeString: escapeString, 
+      sanitizeHTML: sanitizeHTML
     };
 }) ();
 
 
-
+/***************** LATER....
+set the memory factor r of Scrypt key derivation
+*//*
+function setMemory(event, newMemoryFactor){
+	memoryFactor = newMemoryFactor;
+	// set current work factor background and reset other links
+	// get all li elements of parent of parent of target (a element in li in ul)
+	var listArray = event.target.parentElement.parentElement.getElementsByTagName("li");
+	for (var i = 0; i < listArray.length; i++) {
+		if (event.target.isEqualNode(listArray[i].firstChild)){
+			listArray[i].firstChild.style.background = "#00990d";
+		} else {
+			listArray[i].firstChild.style.background = "#f8f8f8";
+		}
+	}
+} */
 
 window.onload = BrowserNotebook.init;
