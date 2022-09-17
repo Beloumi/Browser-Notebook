@@ -65,22 +65,6 @@ var EditorIntegration = (function () {
          return false;			
 		}
 	};
-	/** Set the caret and focus to the end of the document
-	 *  private function
-	 */
-	var _setCaretToEnd = function () {
-		// get current element (textEditor does not work properly)
-		var el = document.getElementsByClassName("pell-content")[0];
-		// create a selection as range at the last node
-		var node = el.lastChild;
-		var range = document.createRange();
-		var sel = window.getSelection();
-		range.setStart(node, 0);
-		range.collapse(true);
-		sel.removeAllRanges();
-		sel.addRange(range);
-		el.focus();
-	};	
 
 	/** Check if a given file is a valid image 
 	 *  @param {Object} [file] The file to check
@@ -95,7 +79,8 @@ var EditorIntegration = (function () {
 			} else {
 				// 2. check extension:
 				var extension = file.name.substring(file.name.lastIndexOf('.'));
-				var validFileType = ".jpg , .png , .bmp , .gif , .jpeg , .tiff , .svg , .ico";
+				// do not allow svg, see: https://security.stackexchange.com/questions/135513/what-could-an-img-src-xss-do
+				var validFileType = ".jpg , .png , .bmp , .gif , .jpeg , .tiff , .ico"; //  .svg , 
     			if (validFileType.toLowerCase().indexOf(extension) < 0) {
         			console.log("File extension: not image");
         			return false;
@@ -124,14 +109,15 @@ var EditorIntegration = (function () {
 	 * private function
 	 **/
 	 var _insertImage = function(file) {
-// see: https://hacks.mozilla.org/2011/01/how-to-develop-a-html5-image-uploader/ 	
-//var img = document.createElement("img");
-//img.src = window.URL.createObjectURL(file);
-
+		// see: https://hacks.mozilla.org/2011/01/how-to-develop-a-html5-image-uploader/ 	
+		//var img = document.createElement("img");
+		//img.src = window.URL.createObjectURL(file);
+		var imageMaxWidth = 300;
 		// if not: set caret
-		if ( window.getSelection().anchorNode.parentNode.className !== 'pell-content') {
-			_setCaretToEnd();
-		}
+		/*  does not work  if (! textEditor || ! textEditor.selectionStart) {
+			//alert("no pos");
+			//		setCaretToEnd();
+		} */
 		var reader  = new FileReader();
    	reader.readAsDataURL(file);
    	reader.onload = function(e)  {
@@ -139,17 +125,22 @@ var EditorIntegration = (function () {
    		// create image:
         	var image = document.createElement("img");
 			image.onload = function () {
+				
    			//alert("image is loaded");
    			//console.log("original width onload: " + image.width);
         		if (image.width <= imageWidth) {
         			// no need to resize
         			// do no display larger than current device width
-        	  		var imageMaxWidth = document.getElementById('textDiv').offsetWidth - 100;  		
+        	  		imageMaxWidth = document.getElementById('textDiv').offsetWidth - 100;  		
   					//console.log("result: " + reader.result);
      				// embed image
-     				pell.exec("insertHTML",  "<img style='float:left; margin:10px 10px 10px 0px; "
+
+     			/*	pell.exec("insertHTML",  "<img style='float:left; margin:10px 10px 10px 0px; "
      				+ "max-width:" + imageMaxWidth + "px' src='"  
-     				+ reader.result + "'>");// use file directly
+     				+ reader.result + "'>");// use file directly */
+     				
+     				pell.exec("insertHTML",  "<img class='insertedImage' src='"  
+     				+ reader.result + "'>");// use file directly     				
         		} else {
         			// resize the image
 					// draw this image in a <canvas> element to pre-process the file
@@ -177,10 +168,9 @@ var EditorIntegration = (function () {
     				ctx.drawImage(image, 0, 0, width, height);
 
     				var source = canvas.toDataURL();		
-					var imageMaxWidth = document.getElementById('textDiv').offsetWidth - 100;  	
+					imageMaxWidth = document.getElementById('textDiv').offsetWidth - 100;  	
 
-     				pell.exec("insertHTML",  "<img style='float:left; margin:10px 10px 10px 0px; "
-     				+ "max-width:" + imageMaxWidth + "px' src='"  
+     				pell.exec("insertHTML",  "<img class='insertedImage' src='"  
      				+ source + "'>");
 				}
 			}
@@ -199,6 +189,27 @@ var EditorIntegration = (function () {
 
 
 	//========================= PUBLIC FUNCTIONS ================================================ 
+	
+		/** Set the caret and focus to the end of the document
+	 *  private function
+	 */
+	var setCaretToEnd = function () {
+ 
+		// get current element (textEditor does not work properly)
+		var el = document.getElementsByClassName("pell-content")[0];
+		// create a selection as range at the last node
+		var node = el.lastChild;
+		if (node != null) {
+		var range = document.createRange();
+		var sel = window.getSelection();
+		//range.setStart(node, 0); this is before last
+		range.setStartAfter(node);
+		range.collapse(true);
+		sel.removeAllRanges();
+		sel.addRange(range);
+		}
+		el.focus();
+	};	
 
 	/** Initialize and set the editor instance
 	*/
@@ -223,14 +234,20 @@ var EditorIntegration = (function () {
   			// action.result<Function> (required)
   			// Specify the actions you specifically want (in order)
   			actions: [
+  			
     			'bold',
     			'italic',
     			'underline',
     			'strikethrough',
+    			 'heading1',
+    			 'heading2',   	
+    		//	selected text as link text 'link',
+    		// only src of image - not encryptable	'image',
     			 // colors:
     			 {
       			name: 'red',  
-      			icon: '<span style="background-color:red; font-size:16px">&nbsp;&nbsp;</span>', 
+   				//icon: '<button style="background-color:red; color: red; border: none;">X</button>', 
+   				icon: '<button id="redButton">X</button>',
       			title: 'Red Color',
  					result:  function result() {
       				return pell.exec('foreColor', 'red');
@@ -238,7 +255,8 @@ var EditorIntegration = (function () {
     			 },
     			 {
       			name: 'blue',  
-      			icon: '<span style="background-color:blue; font-size:16px">&nbsp;&nbsp;</span>', 
+      			//icon: '<button style="background-color:blue; color: blue; border: none;">X</button>',
+      			icon: '<button id="blueButton">X</button>',  
       			title: 'Blue Color',
  					result:  function result() {
       				return pell.exec('foreColor', 'blue');
@@ -246,7 +264,8 @@ var EditorIntegration = (function () {
     			 },
     			 {
       			name: 'black',  
-      			icon: '<span style="background-color:black; font-size:16px">&nbsp;&nbsp;</span>', 
+      			//icon: '<button style="background-color:black; color: black; border: none;">X</button>',
+      			icon: '<button id="blackButton">X</button>',  
       			title: 'Black Color',
  					result:  function result() {
       				return pell.exec('foreColor', 'black');
@@ -254,7 +273,9 @@ var EditorIntegration = (function () {
     			 },
     			 {
       			name: 'green',  
-      			icon: '<span style="background-color:green; font-size:16px">&nbsp;&nbsp;</span>', 
+      			icon: '<button id="greenButton">X</button>',
+      			//icon: '<button style="background-color:green; color: green; border: none;">X</button>', 
+      			// old: icon: '<span style="background-color:green; font-size:1.0em; padding-right:9px; padding-top:2px; padding-bottom:1px;">&nbsp;<span style="font-size:0.1em">GREEN</span></span>', 
       			title: 'Green Color',
  					result:  function result() {
       				return pell.exec('foreColor', 'green');
@@ -262,23 +283,18 @@ var EditorIntegration = (function () {
     			 },
     			 {
       			name: 'gray',  
-      			icon: '<span style="background-color:gray; font-size:16px">&nbsp;&nbsp;</span>', 
+      			//icon: '<button style="background-color:gray; color: gray; border: none;">X</button>',
+      			icon: '<button id="grayButton">X</button>',  
       			title: 'Gray Color',
  					result:  function result() {
       				return pell.exec('foreColor', 'gray');
     				}
     			 },    			
-    			 {
-      			name: 'font size 2',  
-      			icon: '<span style="font-size:9px">9</span>', 
-      			title: 'Font Size 2',
- 					result:  function result() {
-      				return pell.exec('fontSize', '2');
-    				}
-    			 },    			
+		
     			 {
       			name: 'font size 3',  
-      			icon: '<span style="font-size:12px">12</span>', 
+      			//icon: '<span style="font-size:0.75em">12</span>',
+      			icon: '<span id="button12">12</span>',  
       			title: 'Font Size 3',
  					result:  function result() {
       				return pell.exec('fontSize', '3');
@@ -286,7 +302,8 @@ var EditorIntegration = (function () {
     			 },
     			 {
       			name: 'font size 4',  
-      			icon: '<span style="font-size:14px">14</span>', 
+      			//icon: '<span style="font-size:0.875em">14</span>',
+      			icon: '<span id="button14">14</span>',  
       			title: 'Font Size 4',
  					result:  function result() {
       				return pell.exec('fontSize', '4');
@@ -294,12 +311,23 @@ var EditorIntegration = (function () {
     			 },
     			 {
       			name: 'font size 5',  
-      			icon: '<span style="font-size:16px">16</span>', 
+      			//icon: '<span style="font-size:1.0em">16</span>',
+      			icon: '<span id="button16">16</span>',  
       			title: 'Font Size 5',
  					result:  function result() {
       				return pell.exec('fontSize', '5');
     				}
-    			 },    			     			     			  
+    			 },    			     			     	
+    			 {
+      			name: 'font size 6',  
+      			//icon: '<span style="font-size:1.125em">18</span>',
+      			icon: '<span id="button18">18</span>',  
+      			title: 'Font Size 6',
+ 					result:  function result() {
+      				return pell.exec('fontSize', '6');
+    				}
+    			 },     			 		  
+	   
  //   			'heading1',
   //  			'heading2',
  //   			'paragraph',
@@ -308,48 +336,17 @@ var EditorIntegration = (function () {
 //    			'ulist',
 //			   'code',
     			'line',
-    			{
-      			name: 'link',
-      			icon: '<span><img src="../src/images/link.png" style="vertical-align: middle" alt="link" width="16px" height="16px"/></span>',
-      			//result: () => {
-      			result: function () {
-      				
-      				// check if password field is shown
-						if ( document.getElementById("passwordDiv").offsetParent !== null){
-							alert(lang.first_enter_password);//"You must first enter the password...");
-							return;
-						}
-						const url = window.prompt('Enter the link (URL)')
-        				// check if url is valid - this does not work for local links:
-        				var regexp =  /^(?:(?:https?|ftp):\/\/)?(?:(?!(?:10|127)(?:\.\d{1,3}){3})(?!(?:169\.254|192\.168)(?:\.\d{1,3}){2})(?!172\.(?:1[6-9]|2\d|3[0-1])(?:\.\d{1,3}){2})(?:[1-9]\d?|1\d\d|2[01]\d|22[0-3])(?:\.(?:1?\d{1,2}|2[0-4]\d|25[0-5])){2}(?:\.(?:[1-9]\d?|1\d\d|2[0-4]\d|25[0-4]))|(?:(?:[a-z\u00a1-\uffff0-9]-*)*[a-z\u00a1-\uffff0-9]+)(?:\.(?:[a-z\u00a1-\uffff0-9]-*)*[a-z\u00a1-\uffff0-9]+)*(?:\.(?:[a-z\u00a1-\uffff]{2,})))(?::\d{2,5})?(?:\/\S*)?$/;
-        				if (! regexp.test(url)) {
-          				alert("Invalid Link...");
-          					return;
-        				}								
 
-						// check if text for link is selected:
-						if ( (window.getSelection().anchorNode.parentNode.className === 'pell-content')
-								&& (window.getSelection().rangeCount > 0)){
-									//.getRangeAt(0).endOffset - window.getSelection().getRangeAt(0).startOffset > 0) ) {
-          				//window.pell.exec('createLink', url);
-          				// display link address as tooltip:
-          				window.pell.exec("insertHTML",  "<a href='" + url + "' title='" + url +"'>" + window.getSelection() + "</a>");
-						} else {
-							// set caret							
-							_setCaretToEnd();
-							// new line and link address as link text:
-          				window.pell.exec("insertHTML",  "<a href='" + url + "' title='" + url +"'><br/>" + url + "</a>");
-						}
-      			}
-    			},
      			 {		 	
      			 	
     			 	// file upload from disk, convert in base64, embed in text as img
       			name: 'Image',  //  style="vertical-align: middle;float:right;margin-left:5%"
-      			icon: '<span><img src="../src/images/bild.png" style="vertical-align: middle" alt="img" width="16px" height="16px"/></span>',//
+      			icon: '<span><img src="../src/images/bild.png" id="imageButton" alt="img" width="16px" height="16px"/></span>',//
       			//icon: '<span>&#128507;</span>',// Bild +Rahmen: 128444 Berg: &#128507; Sonnenuntergang: 127749
+      			
       			title: 'Image',
  					result:  function result() {
+ 						
  						// check if password field is shown
 						if ( document.getElementById("passwordDiv").offsetParent !== null){
 							alert(lang.first_enter_password);//"You must first enter the password...");
@@ -398,7 +395,8 @@ var EditorIntegration = (function () {
     			 }, 	    			 
     			 {
       			name: 'undo',  
-      			icon: '<span style="font-size:18px">↶</span>', // ANTICLOCKWISE TOP SEMICIRCLE ARROW (U+21B6)
+      			//icon: '<span style="font-size:1.125em">↶</span>', // ANTICLOCKWISE TOP SEMICIRCLE ARROW (U+21B6)
+      			icon: '<span class="undoRedoButton">↶</span>', // ANTICLOCKWISE TOP SEMICIRCLE ARROW (U+21B6)
       			title: 'Undo Action',
  					result:  function result() {
       				return pell.exec('undo');
@@ -406,12 +404,14 @@ var EditorIntegration = (function () {
     			 },
     			 {
       			name: 'redo',
-      			icon: '<span style="font-size:18px">↷</span>', // CLOCKWISE TOP SEMICIRCLE ARROW (U+21B7)
+      			//icon: '<span style="font-size:1.125em">↷</span>', // CLOCKWISE TOP SEMICIRCLE ARROW (U+21B7)
+      			icon: '<span class="undoRedoButton">↷</span>', // CLOCKWISE TOP SEMICIRCLE ARROW (U+21B7)
       			title: 'Redo Action',
  					result:  function result() {
       				return pell.exec('redo');
     				}
-    			 },         			     			     			       			    			 
+    			 },         		
+  			     			       			    			 
  			],
 
   			// classes<Array[string]> (optional)
@@ -420,15 +420,22 @@ var EditorIntegration = (function () {
     			actionbar: 'pell-actionbar',
     			button: 'pell-button',
     			content: 'pell-content',
-//selected: 'pell-button-selected'
   			}
+  			  
 		});
+		//textEditor.id = "pell-text";		  			
 	};
+	
 	/** Do required settings for this editor: 
 	 *  Prevent inserting images as links (the default HTML 5 drag&drop)
 	 */
 	var doInitialSettings = function(){		
-
+	
+		document.getElementsByClassName("pell-content")[0].id = "pell-text";
+		document.getElementsByClassName("pell-content")[0].setAttribute("role", "textbox");
+		document.getElementsByClassName("pell-content")[0].setAttribute("aria-multiline", "true");
+		document.getElementsByClassName("pell-content")[0].setAttribute("aria-label", "text to encrypt");
+	
 		// disable the drag and drop function for images as links:
 		// images as links are not encrypted!!!		
  		var cols =  document.getElementsByClassName('pell-content');
@@ -462,11 +469,11 @@ var EditorIntegration = (function () {
 		// get div element of class pell-content:
  		var cols =     document.getElementsByClassName('pell-content');
   		for(var i=0; i<cols.length; i++) {
-  			cols[i].style.backgroundColor =    '#f2f2f2';
+  			cols[i].style.backgroundColor =  '#f2f2f2';
     		// set contentEditable:
     		cols[i].contentEditable = "true";
   		}
-	 };	 
+	};	 
 
 	/** Get the current content of editor
 	 * @return the content as string (HTML)
@@ -474,17 +481,18 @@ var EditorIntegration = (function () {
 	var getContent = function () {
 		return textEditor.content.innerHTML;
 	};
+	
 	/** Set the content of the editor: 
 	 @param {String} [contentData] The content as (HTML) string
 	 */
 	var setContent = function (contentData) {
-		textEditor.content.innerHTML = contentData;
-	};
 
-
-  
+		textEditor.content.innerHTML = contentData; // TODO Content-Security-Policy
+		//textEditor.content.id = "pell-text";
+	};  
   
   	return { // make functions public:
+  	setCaretToEnd: setCaretToEnd,
   		setEditor: setEditor,
   		getEditor: getEditor,
   		disableEditor: disableEditor,
