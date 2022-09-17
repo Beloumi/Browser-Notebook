@@ -28,31 +28,34 @@ var FileAction = (function () {
 	* private function	
 	*/
 	var _storeImportedFile = function (fileContent) {
-
 		// Store: this is already a JSON object
 		window.localStorage.setItem(PswTitleAction.getTitle(), fileContent);
 		// remove input div
 		var element = document.getElementById("importDiv");
-		element.outerHTML = "";
+		if (element) {
+			element.outerHTML = "";
+		}
 		//delete element;
-			
 		// display password field:
 		PageView.showInputForm(false, true, false);
 	};
 
 	//========================= PUBLIC FUNCTIONS ================================================
 	
+	
 	/** Check key value pairs for Browser Notebook texts
 	 * @param {Object} [jsonContent] The content of the file as JSON object
 	 * @return true, if the object contains all required Browser Notebook keys
 	 */
 	var validateNotebookJSON = function (jsonContent){
-		if (!jsonContent) return false;
+		if (! jsonContent) {
+			return false;
+		}
    	// check keys: iv, iter, ks, ts, mode, cipher, salt, ct
-   	if (jsonContent.hasOwnProperty('iv') && jsonContent.hasOwnProperty('iter')
-   			&& jsonContent.hasOwnProperty('ks') && jsonContent.hasOwnProperty('ts')
+   	if ( jsonContent.hasOwnProperty('iv') && jsonContent.hasOwnProperty('iter')
+  			&& jsonContent.hasOwnProperty('ks') && jsonContent.hasOwnProperty('ts')
   				&& jsonContent.hasOwnProperty('mode') && jsonContent.hasOwnProperty('cipher')
-   			&& jsonContent.hasOwnProperty('salt') && jsonContent.hasOwnProperty('ct')){
+   			&& jsonContent.hasOwnProperty('salt') && jsonContent.hasOwnProperty('ct') ){
    		return true;
    	} else {
    		alert(lang.missing_required_json_key);//"JSON object does not contain required key");
@@ -66,10 +69,10 @@ var FileAction = (function () {
 	 */
 	var processNewFile = function (fileName, fileContent) {
 		// check all localStorage items:
-		if ( BrowserNotebook.checkForExistingStorageKey(fileName)	== true){	
+		if ( BrowserNotebook.checkForExistingStorageKey(fileName) == true){	
 			// ask to overwrite:
 			var r = confirm(lang.existing_title//"There is already a content named " 
-			+ "\n" + fileName + "\n" +
+			+ "\n" + BrowserNotebook.escapeString(fileName) + "\n" +
 			lang.import_overwrites);//".\n Import will overwrite the existing content...");
 			if (r == false) {	
 				console.log("break file import...");
@@ -78,25 +81,24 @@ var FileAction = (function () {
 				return;
 			} 
 		}
-		PswTitleAction.setTitle(fileName);
-  
-    		// check validity of JSON:
-			var jsonContent; // JSON object
-			try {
-   			jsonContent= JSON.parse(fileContent);
-  			} catch (e) {
-  				alert(lang.not_valid_json);//"File content is not valid JSON format...");
-      		return;
-  			}
-    		if ( validateNotebookJSON(jsonContent) === false) {
-    			alert(lang.invalid_notebook_file //"Invalid file for Browser Notebook: "
-    			 + file.name);
-    			return;
-    		}
-    		// store encrypted content
-    		PswTitleAction.setTitle(fileName);
-    		_storeImportedFile(fileContent);	
+    	// check validity of JSON:
+		var jsonContent; // JSON object
+		try {
+   		jsonContent= JSON.parse(fileContent);
+  		} catch (e) {
+  			alert(lang.not_valid_json);//"File content is not valid JSON format...");
+      	return;
+  		}
+    	if ( validateNotebookJSON(jsonContent) === false) {
+    		alert(lang.invalid_notebook_file //"Invalid file for Browser Notebook: "
+    		 + file.name);
+    		return;
+    	}
+    	// store encrypted content
+    	PswTitleAction.setTitle(fileName);
+    	_storeImportedFile(fileContent);	
 	};
+	
 	/** Read a file from file input: FileReader and onload function
 	 * @param {Object} [e] The event
 	 */
@@ -171,7 +173,7 @@ var FileAction = (function () {
         		var aLink = document.createElement("a");
 				var url;
 				if ( window.URL && window.URL.createObjectURL ) {
-					var url = URL.createObjectURL(file);				
+					url = URL.createObjectURL(file);				
 				} else if ( window.webkitURL ) {
 					url = window.webkitURL.createObjectURL( file );
 				} else { //Opera
@@ -192,9 +194,10 @@ var FileAction = (function () {
     		console.log("encrypted text exported in file " + PswTitleAction.getTitle() + ".json");
     	} catch (err) {
     		//alert("Couldn't download the file " + PswTitleAction.getTitle() +":\n" + err);
-    		PageView.errorDisplay(err, true, true, "Couldn't download the file " + PswTitleAction.getTitle());
+    		PageView.errorDisplay(err, true, true, "Couldn't download the file " + BrowserNotebook.escapeString(PswTitleAction.getTitle()));
     	}
 	};
+	
 	/** Import an encrypted file, that was created with another browser, 
 	 but with this application: 1. add a input dialog to get the file name, 
 	 2. read the file, 3. decrypt and 4. display the plaintext
@@ -212,10 +215,166 @@ var FileAction = (function () {
 		PageView.fileImportInput();
 	};
 	
+	/** Close the modal display of text, 
+	 *	when close button was clicked
+	 */
+	var closeImportClipboardText = function () {
+
+    	document.getElementById('importFromClipboardModal').style.display = "none";
+	};  	
+	
+	/** Decrypt the imported text, 
+	 *	
+	 */
+	var decryptClipboardText = function () {
+
+		/* Get the ciphertext from the textarea */
+    	var ciphertext = document.getElementById('importWorkaroundTextArea').value;
+    	if ( ! ciphertext){
+    		alert("No text");
+    		return;
+    	}
+    	/* check if this is valid ciphertext */
+ 		if (FileAction.validateNotebookJSON(JSON.parse(ciphertext)) === false){
+  			alert(lang.not_valid_json);
+  			return;
+  		}
+  		/* Get the password from the password field */
+    	var psw = document.getElementById('importWorkaroundPasswordField').value;  	
+    	if ( ! psw){
+    		alert("No password");
+    		return;
+    	}
+
+    	// decrypt 
+  		var plainText = sjcl.decryptWithScryptAndAES256(psw, ciphertext);
+		var newText = EditorIntegration.getContent() + plainText;
+	 	EditorIntegration.setContent(newText);
+
+  		PageView.indicateUnsavedChanges(true);
+  		
+		//  storedSalt merken und ändern, dann zurücksetzen
+	}; 
+		
+	/** Import an encrypted file, that was created with another browser, 
+	 but with this application: 1. add a input dialog to get the file name, 
+	 2. read the file, 3. decrypt and 4. display the plaintext
+	 */
+	var importFromClipboard = function (){
+	
+		var modalContent;
+		var clipboradWorkaroundDiv;
+		var closeButton;
+		/* check if navigator is available */
+		if (!navigator.clipboard) {
+    		alert("Clipboard access not supported: ");
+    		return;
+  		}
+  		
+  		if (document.getElementById('formInputDiv').offsetParent === null){ // no password dialog is shown  		
+  		
+  			try {		
+				// extra menu is not properly closed in some browsers:
+				PageView.closeExtraMenu();
+				modalContent = document.getElementById('importFromClipboardContent');	
+				modalContent.textContent = ""; // clear all existing children
+		
+				clipboradWorkaroundDiv = document.createElement("div");
+				clipboradWorkaroundDiv.setAttribute("id", 'importClipboardTextDiv');
+				clipboradWorkaroundDiv.appendChild(document.createTextNode(lang.import_workaround_1)	);
+				clipboradWorkaroundDiv.appendChild(document.createElement("br"));			
+				clipboradWorkaroundDiv.appendChild(document.createTextNode(lang.import_workaround_2)	);
+				clipboradWorkaroundDiv.appendChild(document.createElement("br"));			
+				var workaroundTextarea = document.createElement("textarea");
+				workaroundTextarea.setAttribute('id', "importWorkaroundTextArea");
+				workaroundTextarea.rows = "10";
+				workaroundTextarea.cols = "50";
+				clipboradWorkaroundDiv.appendChild(workaroundTextarea);
+				clipboradWorkaroundDiv.appendChild(document.createElement("br"));			
+				clipboradWorkaroundDiv.appendChild(document.createTextNode(lang.import_workaround_3)	);
+				clipboradWorkaroundDiv.appendChild(document.createElement("br"));
+			
+				var workaroundPasswordField = document.createElement("input");
+				workaroundPasswordField.setAttribute('type','password');
+    			workaroundPasswordField.setAttribute('id','importWorkaroundPasswordField');
+    			workaroundPasswordField.required = true;
+    			clipboradWorkaroundDiv.appendChild(workaroundPasswordField);
+   			clipboradWorkaroundDiv.appendChild(document.createElement("br"));
+   			clipboradWorkaroundDiv.appendChild(document.createTextNode(lang.import_workaround_4)	);
+				clipboradWorkaroundDiv.appendChild(document.createElement("br"));
+				clipboradWorkaroundDiv.appendChild(document.createElement("br"));
+				clipboradWorkaroundDiv.appendChild(document.createTextNode(lang.import_workaround_5)	);
+				clipboradWorkaroundDiv.appendChild(document.createElement("br"));
+				clipboradWorkaroundDiv.appendChild(document.createElement("br"));
+				
+				var decryptButton = document.createElement("button");
+				decryptButton.className = "close";
+				decryptButton.setAttribute('title','decrypt');
+				decryptButton.appendChild(document.createTextNode(lang.decrypt) );    		
+				clipboradWorkaroundDiv.appendChild(decryptButton);
+				decryptButton.addEventListener("click",  function(){
+					FileAction.decryptClipboardText(); });
+				
+				closeButton = document.createElement("button");
+				closeButton.className = "close";
+				closeButton.setAttribute('title','close');
+				closeButton.appendChild(document.createTextNode(lang.close_ciphertext) );    		
+				clipboradWorkaroundDiv.appendChild(closeButton);
+				closeButton.addEventListener("click",  function(){
+					FileAction.closeImportClipboardText(); });				
+			
+				modalContent.appendChild(clipboradWorkaroundDiv);
+
+				document.getElementById('importFromClipboardModal').style.display = "block";
+			
+			}	catch (err) { // display encrypted text in alert...
+				PageView.errorDisplay(err, false, true, "Getting encrypted text failed");
+ 				//alert(window.localStorage.getItem(BrowserNotebook.escapeString(PswTitleAction.getTitle())));
+ 			}  
+ 	
+ 		} else { // password dialog is shown
+ 
+   		try {		
+			// extra menu is not properly closed in some browsers:
+			PageView.closeExtraMenu();
+
+			modalContent = document.getElementById('importFromClipboardContent');	
+		
+			clipboradWorkaroundDiv = document.createElement("div");
+			clipboradWorkaroundDiv.setAttribute("id", 'importClipboardTextDiv');
+			// set height (differs if opened in decrypted mode)
+			clipboradWorkaroundDiv.style.height = "8em";
+			clipboradWorkaroundDiv.appendChild(document.createTextNode(lang.import_workaround_hint)	);
+			clipboradWorkaroundDiv.appendChild(document.createElement("br"));			
+			clipboradWorkaroundDiv.appendChild(document.createElement("br"));
+			clipboradWorkaroundDiv.appendChild(document.createTextNode(lang.import_workaround_open_text)	);
+			clipboradWorkaroundDiv.appendChild(document.createElement("br"));			
+			closeButton = document.createElement("button");
+			closeButton.className = "close";
+			closeButton.setAttribute('title','close');
+			closeButton.appendChild(document.createTextNode(lang.close_ciphertext) );    		
+			clipboradWorkaroundDiv.appendChild(closeButton);
+			closeButton.addEventListener("click",  function(){
+				FileAction.closeImportClipboardText(); });				
+			
+			modalContent.appendChild(clipboradWorkaroundDiv);
+
+			document.getElementById('importFromClipboardModal').style.display = "block";
+
+			
+			}	catch (err) { // display encrypted text in alert...
+				PageView.errorDisplay(err, false, true, "Getting encrypted text failed");
+ 				//alert(window.localStorage.getItem(BrowserNotebook.escapeString(PswTitleAction.getTitle())));
+ 			}  
+ 		}
+	};	
 
   	return { // make functions public:
   		downloadFile: downloadFile,
   		importFile: importFile, 
+  		importFromClipboard: importFromClipboard,
+  		decryptClipboardText: decryptClipboardText,
+  		closeImportClipboardText: closeImportClipboardText,
   		processNewFile: processNewFile,
   		readSingleFile: readSingleFile, 
   		validateNotebookJSON: validateNotebookJSON
