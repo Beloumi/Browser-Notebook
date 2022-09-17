@@ -23,7 +23,7 @@
 	indicate unsaved changes of the text    
 */
 "use strict";
-var PageView = (function () {
+var PageView = (function (){
 
 	// true, if there are text changes, that are not saved:
 	var unsavedChanges = false;
@@ -62,24 +62,27 @@ var PageView = (function () {
 				}
 			}			
 			// 2. check required keys:
-   		if (FileAction.validateNotebookJSON(jsonObject) === true){
+   		if ( jsonObject && FileAction.validateNotebookJSON(jsonObject) === true){
 			
 				// 3. get adata text of the item: Check program name and version
 				var adata = sjcl.codec.utf8String.fromBits(sjcl.codec.base64.toBits(jsonObject.adata));
+				var key;
 				// check if item is from Browser Notebook:
 				if (adata.lastIndexOf(BrowserNotebook.programName, 0) === 0) {
 					// check version: log warning
-					if ( ! (adata.indexOf(BrowserNotebook.version, adata.length - BrowserNotebook.version.length) !== -1)){
+					if ( ! (adata.indexOf(BrowserNotebook.version, adata.length - BrowserNotebook.version.length) !== -1) ){
 						console.log("Wrong version of Browser Notebook: " + window.localStorage.key(i));
 					}	
 					// add title to titles array
-					titles.push(window.localStorage.key(i));
+					key = PswTitleAction.replaceTitleCharacters(window.localStorage.key(i));
+					titles.push(key);//window.localStorage.key(i));
 				} else {
 					// check for old text of version 0.1 (there was no adata, but fixed title)
 					if (window.localStorage.key(i) === 'encryptedText'){
 						console.log("Old version of Browser Notebook: " + window.localStorage.key(i));	
 						// add title to titles array
-						titles.push(window.localStorage.key(i));
+						key = PswTitleAction.replaceTitleCharacters(window.localStorage.key(i));
+						titles.push(key);//window.localStorage.key(i));
 					} else {
 						console.log("Not a Browser Notebook item: " + window.localStorage.key(i));			
 					}				
@@ -88,18 +91,20 @@ var PageView = (function () {
 				console.log("Missing required JSON key for cipher text: " + window.localStorage.key(i));
 			}
 		}
-	}
+	};
+	
 	/** Get number of valid titles.
    *  The list must have been set before by loadTitles function	
    *  @return {Number} the number of existing valid text titles
 	*/
   	var getNumberOfTitles = function () {
   		return titles.length;  	
- 	}	
-  /** Show existing titles. 
-   *  The list must have been set before by loadTitles function
+ 	};
+ 	
+  	/** Show existing titles. 
+    *  The list must have been set before by loadTitles function
    */
-  var showTitleList = function () {
+  	var showTitleList = function () {
   	
   		// parent div of titles
 		var titleDiv = document.getElementById("titleListDiv");
@@ -116,47 +121,62 @@ var PageView = (function () {
 		for ( var i = 0; i < len; i++ ) {
 		
 			// get key of item:
-			var storageKey = titles[i];
-			// get value of key:
-			var encryptedText = JSON.parse(window.localStorage.getItem(storageKey));
-		
-			// create radio input with name and onclick function to set the title
-			var radioHtml = '<div"><label style="border: 1px solid gray; padding:5px 10px 5px 5px"><input id="' + storageKey + '"'
-				+  ' style="float: left"'
-				+ ' type="radio" name="titleSelection"' 
-				+ ' onclick="PswTitleAction.setTitle(' + '\'' + storageKey + '\')"';
-//=======> workaround for old version 0.1: 
-			// there is no version and no program name,
-			// but the fixed key 'encryptedText'
-			if (storageKey === 'encryptedText'){ // Version 0.1
-				storageKey = "Old version text";
-			}    					
-			// set selected if this was the last opened title
-    		if ( ((lastTitle != null) && (lastTitle === storageKey)) // last opened title
-    			|| len === 1) {													// only title
-        		radioHtml += ' checked="checked"';        
-        		// set the title
+			var storageKey = BrowserNotebook.escapeString(titles[i]);			
+
+			var titleInListDiv = document.createElement("div");
+			titleInListDiv.setAttribute("title", storageKey);
+			titleInListDiv.className = "titleInList";			
+			
+			var titleLabel = document.createElement("label");
+			titleLabel.setAttribute("class", "titleLabel");
+			var titleLabelText = document.createTextNode(storageKey);
+			titleLabel.appendChild(titleLabelText);
+			
+			var inputRadioButton = document.createElement("input");
+			inputRadioButton.setAttribute("type", "radio");
+   		inputRadioButton.setAttribute("name", "titleSelection");
+   		inputRadioButton.setAttribute("class", "titleInList");
+   		inputRadioButton.setAttribute("id", storageKey);
+   		   		
+   		titleLabel.appendChild(inputRadioButton);   		
+   		titleInListDiv.appendChild(titleLabel);
+   		// set selected if this was the last opened title
+   		// always set one title selected
+    		if (i === 0 || ((lastTitle != null) && (lastTitle === storageKey)) || len === 1) {		// first title or last title or only title
+    			inputRadioButton.checked = true;											
         		PswTitleAction.setTitle(storageKey);	
     		}
-    		radioHtml += '/>' +  storageKey + '</label></div><br/><br/>';
- 		//console.log("Title: " +PswTitleAction.getTitle());
-    		titleDiv.innerHTML += radioHtml;
+   		// add line breaks
+   		titleInListDiv.appendChild(document.createElement("br"));
+   		titleInListDiv.appendChild(document.createElement("br"));
+    		
+			// append created div:
+			titleDiv.appendChild(titleInListDiv);
+			// Closures: define listeners in extra function
+			addTitleListeners(inputRadioButton, storageKey);
    	}
-
+   	
 		if (titleDiv.childElementCount === 0) {
 			alert("There is no valid encrypted text. \nCreate a new text: \n  File -> New...");
 			titleDiv.style.display = "none";
 		} else {
 			titleDiv.style.display = "block";
-		}
-	}  	   
+		}	
+	};	
+	
+	/** Add listener to title radio button (avoid closure)
+	*/
+	var addTitleListeners = function (titleInput, storageKey){  
+		titleInput.addEventListener("click",  function(){
+				PswTitleAction.setTitle(storageKey); });  
+  	};
 
-  /** Show form with required input fields. 
+  	/** Show form with required input fields. 
    * @param {boolean} 	titleInput 				show the title input.
    * @param {boolean} 	passwordFieldInput 	show the password field.
    * @param {boolean} 	confirmPasswordInput show the confirm password field.
    */
-  var showInputForm = function (titleInput, passwordFieldInput, confirmPasswordInput) {
+  	var showInputForm = function (titleInput, passwordFieldInput, confirmPasswordInput) {
 
 		// parent of input fields
 		var inputDiv = document.getElementById("formInputDiv");		
@@ -232,16 +252,16 @@ var PageView = (function () {
 		// scroll the site to form:
       var rect = inputDiv.getBoundingClientRect();
       window.scrollTo(rect.left, rect.top); 		
-  };
+  	};
 
-  /** Indicate whether there are unsaved changes or not: change color of save button.
+  	/** Indicate whether there are unsaved changes or not: change color of save button.
    * @param {boolean} showUnsaved  new changes occurred
    */
-  var indicateUnsavedChanges = function (showUnsaved){  	
+  	var indicateUnsavedChanges = function (showUnsaved){  	
   		if (showUnsaved === true) {
   			if (unsavedChanges === false){ // if not yet set
   				// set button color:
-				document.getElementById("encryptButton").style.background='#b3ffb9';
+				document.getElementById("encryptButton").style.background='#ffb366';
 			}	
 			unsavedChanges = true;
   		} else { // unsaved == false, text was saved
@@ -249,30 +269,30 @@ var PageView = (function () {
   			// remove button color:
 			document.getElementById("encryptButton").style.background = "";
   		}
-  };
+  	};
   
-  /** Check if there are unsaved text changes.
+  	/** Check if there are unsaved text changes.
    * @return {boolean} true, if there are unsaved changes.
    */  
-  var isUnsavedChanges = function (){  
+  	var isUnsavedChanges = function (){  
   		return unsavedChanges;	
-  };  
+  	};  
   
-  /** Show a file input to import a file.
+  	/** Show a file input to import a file.
    */  
-  var fileImportInput = function (){  	
+  	var fileImportInput = function (){  	
 
-	// remove input form if shown:
-	showInputForm(false, false, false);
-	// remove title list if shown:
-	document.getElementById("titleListDiv").style.display = "none";
-	// remove current title
-	document.getElementById("currentTitleDiv").innerHTML = "";
+		// remove input form if shown:
+		showInputForm(false, false, false);
+		// remove title list if shown:
+		document.getElementById("titleListDiv").style.display = "none";
+		// remove current title
+		document.getElementById("currentTitleDiv").textContent = "";
 	
-	if ( document.getElementById("importDiv") !== null){
-		// close file import
-     	document.getElementById("importDiv").outerHTML = "";
-	}
+		if ( document.getElementById("importDiv") !== null){
+			// close file import
+     		document.getElementById("importDiv").outerHTML = "";
+		}
 		// create div element 
 		var importDiv = document.createElement('div');
 		importDiv.setAttribute('id', 'importDiv');
@@ -296,44 +316,148 @@ var PageView = (function () {
       var rect = importDiv.getBoundingClientRect();
 		//console.log(rect.top, rect.right, rect.bottom, rect.left);
       window.scrollTo(rect.left, rect.top); 
-      fileInput.focus();
-    	
-  };     
+      fileInput.focus();    	
+  	};     
   
-  /** Show the JSON file with encrypted content.
+  	/** Workaround for export: Set ciphertext to clipboard to
+   *  paste in any editor and save as file
    */  
-  var showEncryptedText = function (){  	
-	try {		
-		// extra menu is not properly closed in some browsers:
-		closeExtraMenu();
-		// get JSON file and display
-		var encryptedText = window.localStorage.getItem(PswTitleAction.getTitle());
-		var modalContent = document.getElementById('encryptedContent');	
-		modalContent.innerHTML = "<div id='encryptedTextDiv' style='word-wrap: break-word"
-		+ "; height: " + (screen.height / 3) + "px; overflow:auto'>" 
-			+ PswTitleAction.getTitle() + ".json:<br/>" + encryptedText + "</div>" 
-			+ "<button  onclick='PageView.closeEncryptedText()' style='font-size:14px'>close</button>";
-			//console.log("content: " + modalContent.innerHTML);
-		document.getElementById('encryptedTextModal').style.display = "block";
+  	var exportWorkaround = function (){  	
+		try {		
+			// extra menu is not properly closed in some browsers:
+			closeExtraMenu();
+			// check permission
+			const queryOpts = { name: 'clipboard-write', allowWithoutGesture: false };
+		
+			// get JSON file and display
+			var encryptedText = window.localStorage.getItem(PswTitleAction.getTitle());
+			var modalContent = document.getElementById('encryptedContent');			
+		
+			// siehe file_action 285
+			modalContent.textContent = ""; // clear all existing children
+		
+			var clipboradWorkaroundDiv = document.createElement("div");
+			clipboradWorkaroundDiv.setAttribute("id", 'encryptedTextDiv');
+			clipboradWorkaroundDiv.appendChild(document.createElement("br"));			
+			clipboradWorkaroundDiv.appendChild(document.createTextNode(lang.export_workaround_text)	);
+			clipboradWorkaroundDiv.appendChild(document.createElement("br"));						
+			clipboradWorkaroundDiv.appendChild(document.createTextNode(BrowserNotebook.escapeString(PswTitleAction.getTitle()) + ".json" ));
+			clipboradWorkaroundDiv.appendChild(document.createElement("br"));
+			clipboradWorkaroundDiv.appendChild(document.createElement("br"));			
+			// show the encrypted text to copy manually, but hide until FAILED? was pressed
+			var labelWorkaroundCiphertext = document.createElement("label");
+			labelWorkaroundCiphertext.setAttribute("id", 'labelShowEncryptedText');
+			labelWorkaroundCiphertext.htmlFor = 'encText';
+			labelWorkaroundCiphertext.style.display = "none";
+			labelWorkaroundCiphertext.appendChild(document.createTextNode(lang.export_manually)	);
+			clipboradWorkaroundDiv.appendChild(labelWorkaroundCiphertext);
+			// new line to hide and show
+			var pWorkaroundCiphertext = document.createElement("p");
+			pWorkaroundCiphertext.setAttribute("id", 'NL');
+			pWorkaroundCiphertext.style.display = "none";
+			clipboradWorkaroundDiv.appendChild(pWorkaroundCiphertext);
+			var workaroundTextarea = document.createElement("textarea");
+			workaroundTextarea.setAttribute('id', "showEncryptedText");
+			workaroundTextarea.rows = "10";
+			workaroundTextarea.cols = "50";
+			workaroundTextarea.appendChild(document.createTextNode(encryptedText));
+			workaroundTextarea.style.display = "none";
+			clipboradWorkaroundDiv.appendChild(workaroundTextarea);
+			clipboradWorkaroundDiv.appendChild(document.createElement("br"));			
 			
-	}	catch (err) { // display encrypted text in alert...
-		errorDisplay(err, false, true, "Showing encrypted text failed");
- 		alert(window.localStorage.getItem(PswTitleAction.getTitle()));
- 	}  
-  };  
+			// show buttons to copy and to close and failed? button for further workaround: 
+			var copyButton = document.createElement("button");
+			copyButton.className = "close";
+			copyButton.setAttribute('title','copy');
+			copyButton.appendChild(document.createTextNode(lang.copy_ciphertext) );    		
+			clipboradWorkaroundDiv.appendChild(copyButton);
+			copyButton.addEventListener("click",  function(){
+				PageView.copyToClipboard(); });						
+			var failedButton = document.createElement("button");
+			failedButton.className = "close";
+			failedButton.setAttribute('title','workaround if this failed');
+			failedButton.appendChild(document.createTextNode(lang.export_failed) );    		
+			clipboradWorkaroundDiv.appendChild(failedButton);
+			failedButton.addEventListener("click",  function(){
+				PageView.extraExportWorkaround(); });				
+			var closeButton = document.createElement("button");
+			closeButton.className = "close";
+			closeButton.setAttribute('title','close encrypted text view');
+			closeButton.appendChild(document.createTextNode(lang.close_ciphertext) );    		
+			clipboradWorkaroundDiv.appendChild(closeButton);
+			closeButton.addEventListener("click",  function(){
+				PageView.closeEncryptedText(); });				
+			
+			modalContent.appendChild(clipboradWorkaroundDiv);
+			document.getElementById('encryptedTextModal').style.display = "block";
+			
+		}	catch (err) { // display encrypted text in alert...
+			errorDisplay(err, false, true, "Showing encrypted text failed");
+ 			alert(window.localStorage.getItem(BrowserNotebook.escapeString(PswTitleAction.getTitle())));
+ 		}  
+  	};  
+  
+    /** Workaround for workaround: 
+     *  show encrypted text to copy manually
+     */
+	var extraExportWorkaround = function () {
+		document.getElementById('labelShowEncryptedText').style.display = "block";
+		document.getElementById('NL').style.display = "block";
+		document.getElementById('showEncryptedText').style.display = "block";
+		// enlarge the div:
+		document.getElementById('encryptedTextDiv').style.height = "20em";
+	}
+	
+  	/** Copy the encrypted text to clipboard
+   *  and show success message or error
+   */
+	var copyToClipboard = function () {		
+		/* check if navigator is available */
+		if (!navigator.clipboard) {
+    		alert("Clipboard access not supported: ");
+    		return;
+  		}
+  		if ( ! navigator.clipboard.writeText) {
+  		   alert("Clipboard write not supported: ");
+    		return;
+  		}
+  		/* Get the text field */
+  		var encryptedText = window.localStorage.getItem(PswTitleAction.getTitle());
+  
+  		/* check if this is really the encrypted text */
+  		if (FileAction.validateNotebookJSON(JSON.parse(encryptedText)) === true){
+
+  			/* Set text to clipboard */
+  			navigator.clipboard.writeText(encryptedText).then(() => {
+  				/* clipboard successfully set */
+    			/* Create a substring to show: The user can check for completeness */
+  				var ciphertextToShow = encryptedText;
+  				var encryptedTextLen = encryptedText.length;
+  				if (encryptedTextLen > 300) {
+  					ciphertextToShow = encryptedText.substr(0, 200) // show all values, but cut ciphertext
+  					+ "\n...\n...\n" 
+  					+ encryptedText.substr(encryptedTextLen - 32, encryptedTextLen -1); // show end of ciphertext
+  				}
+  				/* Alert the copied text */
+  				alert("Copied: \n\n" + ciphertextToShow);
+			}, () => {
+ 				 /* clipboard write failed */
+  				alert("Copy failed... " );
+			});
+
+  		} else {
+  			alert("Copy failed: invalid ciphertext " + encryptedText);
+  		}
+	};
+	
 	/** Close the modal display of encrypted text, 
 	 *	when close button was clicked
 	 */
 	var closeEncryptedText = function () {
     	document.getElementById('encryptedTextModal').style.display = "none";
-    	// reset position of extra menu
- /*   	var nodes = document.getElementById('extraMenuList').getElementsByTagName("*");
-		for (var i=0; i < nodes.length; i++){
-			 nodes[i].style.position = "relative";
-		} */
 	};  
+	
 	/** Close extra menu
-	 *
 	 */
 	 var closeExtraMenu = function () {
 		// close all nodes manually:
@@ -342,6 +466,7 @@ var PageView = (function () {
 			 nodes[i].style.position = "absolute";
 		}	 	
 	 };
+	 
 	/** Reset the previously closed extra menu
 	 * (especially Safari/Chrome for iOS do not properly close the menu)
 	 */
@@ -392,24 +517,24 @@ var PageView = (function () {
   			if (BrowserNotebook.isTestMode() === true) {
 				alert(consoleMessage);// test mode  			
 			}
-  		}
-
-			
-		};
+  		}			
+	};
   
   	return { // make functions public:
   		loadTitles: loadTitles,
   		getNumberOfTitles: getNumberOfTitles,
   		showTitleList: showTitleList,
+  		addTitleListeners: addTitleListeners,
     	showInputForm: showInputForm,
     	indicateUnsavedChanges: indicateUnsavedChanges,
     	isUnsavedChanges: isUnsavedChanges,
     	fileImportInput: fileImportInput, 
-    	showEncryptedText: showEncryptedText, 
+    	exportWorkaround: exportWorkaround, 
+    	extraExportWorkaround: extraExportWorkaround,
+    	copyToClipboard: copyToClipboard,
     	closeEncryptedText: closeEncryptedText,
     	closeExtraMenu: closeExtraMenu, 
     	resetExtraMenu: resetExtraMenu, 
     	errorDisplay: errorDisplay
   	};
 })();
-
