@@ -18,12 +18,42 @@
 "use strict";
 var CloudAction = (function () {
 	
-
+	var dropboxLoaded = false;
+	
 	//========================= PUBLIC FUNCTIONS ================================================
 	
+	
+	/** Load the Dropbox library only if needed,
+	 *  because dropins.js accesses some user info. 
+	*/
+	var loadDropboxLib = function () {
+		var script = document.createElement("script");
+		script.setAttribute("type", "text/javascript");
+		script.setAttribute("src", "https://www.dropbox.com/static/api/2/dropins.js");
+		script.setAttribute("id", "dropboxjs");	
+		script.setAttribute("data-app-key", "nlkvxuae166zuzw");
+		
+		script.addEventListener('load', function() {		  	
+		  // hide the enanble button
+		  	document.getElementById("enableDropbox").style.display = "none";
+		  	document.getElementById("dropboxTrackerHint").style.display = "none";
+		  	// show load and save buttons
+			document.getElementById("dropboxButton").style.display = "block";
+			document.getElementById("dropboxButtonSave").style.display = "block";			  	
+    		//alert("loaded");
+  		});	
+		document.getElementsByTagName("head")[0].appendChild(script);
+		dropboxLoaded = true;
+	};
+
 	/** Save the current file to Dropbox
 	*/
 	var dropboxSave = function() {
+		
+		if (dropboxLoaded == false){
+			alert("You have to enable Dropbox");
+			return;
+		}
 		
 		if (! Dropbox.isBrowserSupported() ){
 			alert("Dropbox: " + lang.no_support_upload );//("Error: Your browser does not support Dropbox Chooser...");
@@ -31,6 +61,10 @@ var CloudAction = (function () {
 		}	
 		// get content:
 		var encryptedText = BrowserNotebook.encryptAndSaveByStoredKey();
+		if (! encryptedText || encryptedText.length === 0 ){
+			// there is already an alert from encryptAndSaveByStoredKey
+			return;
+		}
 		// create helper element to get a file object for Dropbox (Blob does not work)
 		var helperElement = document.createElement('a');		
   		helperElement.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(encryptedText));
@@ -49,16 +83,25 @@ var CloudAction = (function () {
         		alert( lang.file_saved + "\n" + PswTitleAction.getTitle() + ".json");
     		},
 
+    		// Progress is called periodically to update the application on the progress
+    		// of the user's downloads. The value passed to this callback is a float
+    		// between 0 and 1. The progress callback is guaranteed to be called at least
+    		// once with the value 1.
+ //   		progress: function (progress) {
+//				console.log("progress: " + progress);    		
+ //   		}, 
+
     		// Cancel is called if the user presses the Cancel button or closes the Saver.
     		cancel: function () {
-    			console.log("Save file to dropbox canceled ")    
+    			console.trace();
+    			console.log("Save file to dropbox canceled ");    
     		},
 
     		// Error is called in the event of an unexpected response from the server
    		 // hosting the files, such as not being able to find a file. This callback is
     		// also called if there is an error on Dropbox or if the user is over quota.
     		error: function (errorMessage) {
-   			if (errorMessage =! null){
+   			if (errorMessage =! null) {
    				 alert("Dropbox couldn't save the file " + PswTitleAction.getTitle() + ".json");
    				 console.log("Error: " + error);   				 	
    			}    
@@ -70,32 +113,33 @@ var CloudAction = (function () {
 	/** Load the list of json files from Dropbox
 	*/
 	var dropboxLoad = function() {
+
+		if (dropboxLoaded == false){
+			alert("You have to enable Dropbox");
+			return;
+		}
 		
 		if (! Dropbox.isBrowserSupported() ){
 			alert("Dropbox: " + lang.no_support_download);//"\nYour browser does not support Dropbox Chooser...");
 			return;
 		}		
-		
+
 		// Create the options parameter
 		var options = {
-
     		// Required. Called when a user selects an item in the Chooser.
     		success: function(files) {
     			// there is always only one file
-				var file = files[0];    			
-    			
+				var file = files[0];    		
     			if (!fetch ) {
     				alert("Dropbox " + lang.no_support_download);
-    			}
-        		
+    			}      		
          		fetch(file.link) // Call the fetch function passing the url of the API as a parameter
 					.then(function(response) {
   						return response.text();
 					})
 					.then(function(text) {
 						// remove extension: .json or other
-  						var fileName = file.name.substring(0, file.name.lastIndexOf('.'));	
-  						
+  						var fileName = file.name.substring(0, file.name.lastIndexOf('.'));						
   						if ( BrowserNotebook.checkForExistingStorageKey(fileName)	== true){	
 								// ask to overwrite:
 								var r = confirm(lang.existing_title//"There is already a content named " 
@@ -109,19 +153,16 @@ var CloudAction = (function () {
 								} else { // overwrite: remove existing item
 									window.localStorage.removeItem(fileName);
 								}
-						} 
-			
+						} 		
 						// set the title
 						PswTitleAction.setTitle(fileName);
 						// quit current text if open
 						// check if password field is shown
 						if ( document.getElementById("passwordDiv").offsetParent === null){
-	
 							BrowserNotebook.quitProgram();
 							// set last opened text title: 
  							window.localStorage.setItem( 'lastTitle', fileName);
- 						}
-						
+ 						}					
 						// remove titles from list
 						if (document.getElementById("titleListDiv") != null
   								&& document.getElementById("titleListDiv").style.display === "block"){
@@ -132,10 +173,12 @@ var CloudAction = (function () {
 						}
 						// hide title list:
 						document.getElementById("titleListDiv").style.display = "none";	
-						// add new text title
-						document.getElementById("currentTitleDiv").innerHTML = '<span style="font-size:20px; font-weight: 900; border-style: solid;">'
-		 					+  fileName + '</span>';
-	 	
+						// add new text title		
+		 				document.getElementById("currentTitleDiv").textContent = "";
+		 				var titleSpan = document.createElement('span');
+		 				titleSpan.setAttribute("id", "currentTitleSpan");
+		 				titleSpan.appendChild(document.createTextNode(BrowserNotebook.escapeString(fileName)));
+		 				document.getElementById("currentTitleDiv").appendChild(titleSpan);		 						 	
 						// check and load the file
   						FileAction.processNewFile(fileName, text);
 					})
@@ -143,6 +186,8 @@ var CloudAction = (function () {
    				 //cloud action error: TypeError: element is null
    				 if (error =! null){
    				 	console.log("cloud action error (load file from Dropbox): " + error); 
+   				 	// quit the program: show start dialog
+   				 	BrowserNotebook.quitProgram();
    				 	//alert("Couldn't load a file from Dropbox" );  				 	
    				 }
 					}
@@ -151,6 +196,7 @@ var CloudAction = (function () {
 
    		 // Optional. Called when the user closes the dialog without selecting a file
     		cancel: function() {
+    			console.trace();
     			console.log("Import file from dropbox canceled ")
     		},
 
@@ -177,6 +223,7 @@ var CloudAction = (function () {
 
   
   	return { // make functions public:
+  		loadDropboxLib: loadDropboxLib,
   		dropboxLoad: dropboxLoad,
   		dropboxSave: dropboxSave
   	};
