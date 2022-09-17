@@ -17,7 +17,6 @@
 "use strict";
 var PswTitleAction = (function () {
 
-
 	// title of the current text item:
 	var currentTextTitle = "";
 
@@ -26,9 +25,6 @@ var PswTitleAction = (function () {
 	
 	// hourglass image to indicate processing
 	var hourGlass;
-	
-	// the ciphertext of the imported file or from Dropbox
-	var cipherText;
 	
 	//========================= PRIVATE FUNCTIONS ================================================
 	
@@ -63,6 +59,7 @@ var PswTitleAction = (function () {
   		// wait for showing the image and wait cursor...
   		setTimeout(callback, 200);
 	};
+	
 	/** Hide hourgalss image and reset cursor to default
 	  * @param {function} [callback] 		The function to call after hiding the hourglas 
 	  * private function
@@ -126,10 +123,16 @@ var PswTitleAction = (function () {
     				listNode.removeChild(listNode.firstChild);
 				}		
 			}
-			// add text title
-			document.getElementById("currentTitleDiv").innerHTML = '<span style="font-size:20px; font-weight: 900; border-style: solid;">'
-		 		+  PswTitleAction.getTitle() + '</span>';
-
+ 		
+		 	// show the title of the text:
+		 	document.getElementById("currentTitleDiv").textContent = "";
+		 	var titleSpan = document.createElement('span');
+		 	titleSpan.setAttribute("id", "currentTitleSpan");
+		 	titleSpan.appendChild(document.createTextNode(BrowserNotebook.escapeString(PswTitleAction.getTitle())));
+		 	document.getElementById("currentTitleDiv").appendChild(titleSpan);		 		
+		 		
+			// hide the info text about program and version:
+			document.getElementById("programInfo").style.display = "none";
 		} catch (err) {
   			if (err.toString().match("tag doesn't match")){
   				alert(lang.wrong_password);//"Wrong password");
@@ -220,49 +223,34 @@ var PswTitleAction = (function () {
     	}
 	};
 	
+	
+	//========================= PUBLIC FUNCTIONS ================================================	
+	
  	/** Replace probably problematic characters 
   	 * for JSON object with underscore
   	 * private function
  	 */
- 	var _replaceTitleCharacters = function (newTitle){
-		// replace problematic characters:
-		newTitle = newTitle.replace('\"', '_');
-		newTitle = newTitle.replace('\'', '_');
-		newTitle = newTitle.replace('{', '_');
-		newTitle = newTitle.replace('}', '_');
-		newTitle = newTitle.replace('[', '_');
-		newTitle = newTitle.replace(']', '_');
-		newTitle = newTitle.replace(':', '_');
-		newTitle = newTitle.replace(',', '_');
-		newTitle = newTitle.replace('.', '_');
-		newTitle = newTitle.replace(';', '_');	
-		newTitle = newTitle.replace('\\', '_');	
-		return newTitle;
-	};
-	
-	//========================= PUBLIC FUNCTIONS ================================================	
-	
-	/** Set the JSON content with the ciphertext
-	* @param {String} newCipherText  the ciphertext as base64
-	*/ 
-	var setCipherText = function(newCipherText) {
-		cipherText = newCipherText;
-		
+ 	var replaceTitleCharacters = function (newTitle){
+		// replace problematic characters: 		
+ 		return newTitle.replace(/[\-\[\]\/\{\}\(\)\,\'\"\.\\\&\|\<\>\;\:\=]/g, "_");
 	};	
 	
  	/** Get the title of the current text
   	 * @return {String} the title of the current text  
     */ 
  	var getTitle = function () {   
- 		return currentTextTitle;
+ 		return BrowserNotebook.escapeString(currentTextTitle);
  	};
+ 	
   /** Set the title of the current text
    * @param {String} newTitle  the title of the current text  
    */ 
- 	var setTitle = function (newTitle) {   
+ 	var setTitle = function (newTitle) {   //alert("pswtitleaction260 " + newTitle);
+ 		newTitle = replaceTitleCharacters(newTitle);
  		currentTextTitle = newTitle;
  		//document.getElementById("titleInput").value = newTitle;
  	};
+ 	
 	/** Change the title of the current text
 	 */
 	var changeTitle = function (){
@@ -274,6 +262,7 @@ var PswTitleAction = (function () {
 		// store old title to remove later
 		oldTitleToRemove = currentTextTitle;
 		PageView.showInputForm(true, false, false);
+		document.getElementById("titleInput").focus();
 	}; 
 
 	/**Change the password
@@ -289,166 +278,173 @@ var PswTitleAction = (function () {
 		PageView.closeExtraMenu();
 		// show input form without title input:
 		PageView.showInputForm(false, true, true);
+		document.getElementById("passwordField").focus();
 	};	
  
- /** onclick function of password and title form button.
-  *  Handles values of shown input fields: password, confirm password, title.
-  *  Used for: initialization, open/decrypt text, password change, change title
-  */
- var processInputForm = function () {
+ 	/** onclick function of password and title form button.
+  	*  Handles values of shown input fields: password, confirm password, title.
+  	*  Used for: initialization, open/decrypt text, password change, change title
+  	*/
+ 	var processInputForm = function () {
  		
-	// check title input:
-	if (document.getElementById("titleDiv").offsetParent !== null) { // visible
-		// get new title
-		var newTitle = document.getElementById("titleInput").value;
+		// check title input:
+		if (document.getElementById("titleDiv").offsetParent !== null) { // visible
+			// get new title
+			var newTitle = document.getElementById("titleInput").value;
 
-		// set to default if null
-		if (newTitle == null || newTitle === "") {
+			// set to default if null
+			if (newTitle == null || newTitle === "") {
 			newTitle = "default";
-		}
-
-		// replace problematic JSON characters
-		newTitle = _replaceTitleCharacters(newTitle);
-
-		// check if already exists and ask to break
-		if (BrowserNotebook.checkForExistingStorageKey(newTitle) === true) {
-			var r = confirm(lang.existing_title//"There is already a content named " 
-			+ "\n" + newTitle + "\n" 
-			+ lang.import_overwrites);
-			if (r == false) {	
-				console.log("break new text...");
-				// reload the page:
-				window.location.reload();
-				return;
-			} 
-		}		
-		// set new title
-		currentTextTitle = newTitle;
-	}
-	//console.log("title: " + currentTextTitle);
-	
-	// check password and confirm password: initialization or password change
-	if (document.getElementById("confirmDiv").offsetParent !== null) { // confirm password field is visible
-	  	
-	  	// check if password is null
-  		var psw = document.getElementById("passwordField").value;
-  		if (psw === null || psw === "") {
-  			alert(lang.type_and_confirm);//"You must type and confirm a password...");
-  			psw = "";
-  			return;
-  		}  		
-  		// check if confirm password is null
-  		var retypePsw = document.getElementById("confirmPasswordField").value;
-  		if (retypePsw === null || retypePsw === "") {
-  			alert(lang.confirm_password);//"You must confirm the password...");
-  			return;
-  		}  		
-  		// check if passwords are equal
-  		if (_compareStrings(psw, retypePsw) === true) { //psw === confirmPsw) {  			
-  			try{
-  				var plainText = EditorIntegration.getContent();
-  				//var plainText = document.getElementById("textField").value;// this might be ""
-				_showHourGlass(function() {
-  					_encryptByPassword(psw, plainText, function() {
-    					_hideHourGlass();
-  					});
-				});  		
-  			}catch (err) {
-  				PageView.errorDisplay(err, false, true, "Encryption of content failed... ");
-  			}			
-			// reset	
-  			var confirmPassword = false;
-  			
-			// add text title
-			document.getElementById("currentTitleDiv").innerHTML = 
-				'<span style="font-size:20px; font-weight: 900; border-style: solid;">' +  currentTextTitle + '</span>';
-				
-			// set last opened text title: 
- 			window.localStorage.setItem( 'lastTitle', currentTextTitle);
-  			  			
-  			// enable text area
-			//document.getElementById("textField").disabled = false;
-			EditorIntegration.enableEditor();
-			// change placeholder
-			if (plainText == null || plainText === ""){
-//				document.getElementById("textField").placeholder = lang.enter_text_placeholder;//"Enter your text...";
 			}
 
-  		} else {
-  			alert(lang.password_confirm_not_equal);//"Password and confirmed password are not equal");		
-  			document.getElementById("confirmPasswordField").value = "";
-  			return;
-  		}	  		
-  		
-	} else { // confirm field is hidden
-		// Case 1: change title
-		if (document.getElementById("passwordDiv").offsetParent === null) { // password field is also hidden
-		
-			// title was changed: encrypt by key
-			BrowserNotebook.encryptAndSaveByStoredKey();
-			// display new text title
-			document.getElementById("currentTitleDiv").innerHTML = 
-				'<span style="font-size:20px; font-weight: 900; border-style: solid;">' +  currentTextTitle + '</span>';
-			// set last opened text title: 
- 			window.localStorage.setItem( 'lastTitle', currentTextTitle);		
- 			// remove old item
- 			if (oldTitleToRemove !== ""){
-				localStorage.removeItem(oldTitleToRemove);
-				oldTitleToRemove = "";
-			} else {
-				console.log("Could not find old text title to remove...");
-			}
-		// Case 2: open/decrypt text
-		} else {	// open/decrypt existing/imported/dropbox text
-		
-			// decrypt the text: 	
-			if (currentTextTitle == null || currentTextTitle === "") {
-				alert(lang.no_title_error);//"Error: There is no title");
-				return;
+			// replace problematic HTML/JSON characters
+			newTitle = replaceTitleCharacters(newTitle);
+
+			// check if already exists and ask to break
+			if (BrowserNotebook.checkForExistingStorageKey(newTitle) === true) {
+				var r = confirm(lang.existing_title//"There is already a content named " 
+				+ "\n" + newTitle + "\n" 
+				+ lang.import_overwrites);
+				if (r == false) {	
+					console.log("break new text...");
+					// reload the page:
+					window.location.reload();
+					return;
+				} 
 			}		
-		
- 			// get password
-			var psw = document.getElementById("passwordField").value;
-			if (psw === null || psw === ""){			
-				alert(lang.first_enter_password);//"You must type a password...");
-				return;
-			}			
-			// clear password field:
-			document.getElementById("passwordField").value = "";
-
-			// get encrypted text from local storage
-			// (file import stores cipher text)
-// TODO do not store before password fits..., set cipherText variable
-  			var encryptedText = window.localStorage.getItem(currentTextTitle);
-  			try {
-  				if (encryptedText ) {
-					// 1. show hourglass, 2. decrypt and display, 3. hide hourglass
+			// set new title
+			currentTextTitle = newTitle;
+		}
+		//console.log("title: " + currentTextTitle);
+	
+		// check password and confirm password: initialization or password change
+		if (document.getElementById("confirmDiv").offsetParent !== null) { // confirm password field is visible
+	  	
+	  		// check if password is null
+  			var psw = document.getElementById("passwordField").value;
+  			if (psw === null || psw === "") {
+  				alert(lang.type_and_confirm);//"You must type and confirm a password...");
+  				psw = "";
+  				return;
+  			}  		
+  			// check if confirm password is null
+  			var retypePsw = document.getElementById("confirmPasswordField").value;
+  			if (retypePsw === null || retypePsw === "") {
+  				alert(lang.confirm_password);//"You must confirm the password...");
+  				return;
+  			}  		
+  			// check if passwords are equal
+  			if (_compareStrings(psw, retypePsw) === true) { //psw === confirmPsw) {  			
+  				try{
+  					var plainText = EditorIntegration.getContent();
+  					//var plainText = document.getElementById("textField").value;// this might be ""
 					_showHourGlass(function() {
-  						_decryptByPassword(psw, encryptedText, function() {
+  						_encryptByPassword(psw, plainText, function() {
     						_hideHourGlass();
   						});
-					});  	
-					// get last opened text title: 
- 					window.localStorage.setItem( 'lastTitle', currentTextTitle);
-  				} else {
-					console.log("No stored text...");			
+					});  		
+  				}catch (err) {
+  					PageView.errorDisplay(err, false, true, "Encryption of content failed... ");
+  				}			
+				// reset	
+  				//var confirmPassword = false;
+  							
+		 		// show the title of the text:
+		 		document.getElementById("currentTitleDiv").textContent = "";
+		 		var titleSpan = document.createElement('span');
+		 		titleSpan.setAttribute("id", "currentTitleSpan");
+		 		titleSpan.appendChild(document.createTextNode(BrowserNotebook.escapeString(BrowserNotebook.escapeString(currentTextTitle))));
+		 		document.getElementById("currentTitleDiv").appendChild(titleSpan);			
+				
+				// set last opened text title: 
+ 				window.localStorage.setItem( 'lastTitle', currentTextTitle);
+  			  			
+  				// enable text area
+				//document.getElementById("textField").disabled = false;
+				EditorIntegration.enableEditor();
+
+  			} else {
+  				alert(lang.password_confirm_not_equal);//"Password and confirmed password are not equal");		
+  				document.getElementById("confirmPasswordField").value = "";
+  				return;
+  			}	  		
+  		
+		} else { // confirm field is hidden
+			// Case 1: change title
+			if (document.getElementById("passwordDiv").offsetParent === null) { // password field is also hidden
+		
+				// title was changed: encrypt by key
+				BrowserNotebook.encryptAndSaveByStoredKey();
+				// display new text title
+		 		document.getElementById("currentTitleDiv").textContent = "";
+		 		var titleSpan = document.createElement('span');
+		 		titleSpan.setAttribute("id", "currentTitleSpan");
+		 		titleSpan.appendChild(document.createTextNode(BrowserNotebook.escapeString(BrowserNotebook.escapeString(currentTextTitle))));
+		 		document.getElementById("currentTitleDiv").appendChild(titleSpan);			
+				
+				
+				// set last opened text title: 
+ 				window.localStorage.setItem( 'lastTitle', currentTextTitle);		
+ 				// remove old item
+ 				if (oldTitleToRemove !== ""){
+					localStorage.removeItem(oldTitleToRemove);
+					oldTitleToRemove = "";
+				} else {
+					console.log("Could not find old text title to remove...");
+				}
+			// Case 2: open/decrypt text
+			} else {	// open/decrypt existing/imported/dropbox text
+		
+				// decrypt the text: 	
+				if (currentTextTitle == null || currentTextTitle === "") {
+					alert(lang.no_title_error);//"Error: There is no title");
+					return;
+				}		
+		
+ 				// get password
+				var psw = document.getElementById("passwordField").value;
+				if (psw === null || psw === ""){			
+					alert(lang.first_enter_password);//"You must type a password...");
+					return;
+				}			
+				// clear password field:
+				document.getElementById("passwordField").value = "";
+
+				// get encrypted text from local storage
+				// (file import stores cipher text)
+				// TODO do not store before password fits..., set cipherText variable
+  				var encryptedText = window.localStorage.getItem(currentTextTitle);
+  				try {
+  					if (encryptedText ) {
+						// 1. show hourglass, 2. decrypt and display, 3. hide hourglass
+						_showHourGlass(function() {
+  							_decryptByPassword(psw, encryptedText, function() {
+    							_hideHourGlass();
+  							});
+						});  	
+						// get last opened text title: 
+ 						window.localStorage.setItem( 'lastTitle', currentTextTitle);
+  					} else {
+						console.log("No stored text...");			
+  					}
+  				} catch (err) {
+  					PageView.errorDisplay(err, true, true, "Decryption of content failed... ");
   				}
-  			} catch (err) {
-  				PageView.errorDisplay(err, true, true, "Decryption of content failed... ");
   			}
-  		}
-	}
-	// hide all input fields:
-	PageView.showInputForm(false, false, false);
-	// hide title list:
-	document.getElementById("titleListDiv").style.display = "none";
- };
+		}
+		// hide all input fields:
+		PageView.showInputForm(false, false, false);
+		// hide title list:
+		document.getElementById("titleListDiv").style.display = "none";
+		document.getElementById("programInfo").style.display = "none";
+ 	};
   
   	return { // make functions public:
   		processInputForm: processInputForm, 
   		getTitle: getTitle, 
   		setTitle: setTitle, 
   		changePassword: changePassword,
-  		changeTitle: changeTitle
+  		changeTitle: changeTitle,
+  		replaceTitleCharacters: replaceTitleCharacters
   	};
 })();
