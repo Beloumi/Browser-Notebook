@@ -24,8 +24,21 @@ var lang = {
 	 invalid_notebook_file: "Ungültige Browser-Notebook-Datei: ", 
 	 no_support_download: "Dieser Browser unterstützt keine Download-Funktion",
 	 no_support_upload: "Dieser Browser unterstützt keine Upload-Funktion",
+	 import_workaround_hint: "Alternative, wenn der Datei-Import fehlschlägt:",
+	 import_workaround_open_text: "Erstelle einen neuen Text oder öffne einen bestehenden Text um den importierten Texten dort anzuhängen und dann klicke erneut auf diesen Menüeintrag.",
+	 decrypt: "Entschlüsseln",
+	 import_workaround_1: "1. Öffne die Datei mit einem Texteditor. ",
+	 import_workaround_2: "2. Kopiere den Inhalt und füge ihn hier ein:",
+	 import_workaround_3: "3. Gib das Passwort ein: ",
+	 import_workaround_4: "4. Klicke auf Entschlüsseln",
+	 import_workaround_5: "Achtung: Das Passwort des importierten Texts gilt dann auch für diesen Text. ",	 
 	// page_view.js
 	 no_text_create: "Es liegt kein Text vor. \nErzeuge neuen Text: \n  Datei -> Neu...",
+	 copy_ciphertext: "Kopieren",
+	 export_failed: "Fehlgeschlagen?",
+	 close_ciphertext: "Schließen",
+	 export_workaround_text: "Kopieren stellt den verschlüsselten Text in die Zwischenablage. \nFüge den Text in einen Editor ein und speichere die Datei unter dem Namen:",
+	 export_manually: "Wähle den folgenden Text aus und kopiere ihn manuell:",
 	 // pell_integration
 	 select_image: "Bilddatei auswählen",
 	 invalid_image_file: "Ungültige Bilddatei",
@@ -33,3 +46,4 @@ var lang = {
 	 // cloud_action.js
 	 file_saved: "Datei gespeichert:"
 };
+
